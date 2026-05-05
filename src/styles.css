@@ -182,6 +182,15 @@
     overflow-y: auto;
   }
 }
+
+/* Make all large sheets scrollable on any viewport. Without a max-height and
+   overflow, Chrome on desktop or PWA may render the CSV import sheet off
+   screen with no scroll. By capping height relative to the viewport and
+   enabling vertical scrolling, the confirm button remains reachable. */
+.sheet.large {
+  max-height: calc(96dvh);
+  overflow-y: auto;
+}
 /* Dashboard card for quick expense addition. This replaces the floating FAB. */
 .quickAddCard {
   margin-top: 14px;
