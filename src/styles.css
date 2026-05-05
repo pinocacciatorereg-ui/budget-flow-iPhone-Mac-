@@ -68,3 +68,31 @@
   main{padding-left:12px;padding-right:12px}.panel{border-radius:22px}.distributionPanel h2{font-size:22px}.panelTitleRow{display:block}.panelTitleRow strong{display:block;margin-top:6px}.pieInner{width:min(72vw,250px);height:min(72vw,250px)}.mobileLegend div{font-size:14px;grid-template-columns:11px minmax(0,1fr) auto}.mobileLegend em{display:none}.mobileLegend b{font-size:14px}.legend i{width:10px;height:10px}.cards .card strong{font-size:24px}
 }
 @media (prefers-color-scheme: dark){.panelTitleRow p,.donutCenter span,.mobileLegend em{color:#94a3b8}.mobileLegend div{background:#0f172a;border-color:#334155}}
+
+/* v10 - grafico Spese per categoria ottimizzato per iPhone */
+.categorySpendPanel{overflow:hidden}
+.mobileSpendList{display:none}
+.desktopChart{display:block}
+.spendItem{padding:12px 0;border-bottom:1px solid #eef0f4}
+.spendItem:last-child{border-bottom:0}
+.spendTop{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px}
+.spendTop span{display:flex;align-items:center;gap:10px;min-width:0;font-weight:800;color:#111827}
+.spendTop span i{width:12px;height:12px;border-radius:999px;flex:0 0 12px}
+.spendTop span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spendTop b{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:16px}
+.spendTrack{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden}
+.spendTrack em{display:block;height:100%;border-radius:999px;min-width:4px}
+.emptyMini{padding:20px;border:1px dashed #cbd5e1;border-radius:16px;color:#64748b;text-align:center;font-weight:700;background:#f8fafc}
+@media(max-width:900px){
+  .categorySpendPanel{padding:18px 14px;border-radius:24px;overflow:hidden}
+  .categorySpendPanel .panelTitleRow{display:block;margin-bottom:8px}
+  .categorySpendPanel h2{font-size:22px;margin-bottom:4px}
+  .desktopChart{display:none}
+  .mobileSpendList{display:block}
+}
+@media (prefers-color-scheme: dark){
+  .spendItem{border-bottom-color:#334155}
+  .spendTop span{color:#e5e7eb}
+  .spendTrack{background:#1f2937}
+  .emptyMini{background:#0f172a;border-color:#334155;color:#94a3b8}
+}
