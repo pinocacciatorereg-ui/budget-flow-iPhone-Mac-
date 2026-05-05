@@ -171,6 +171,17 @@
     max-height: 82dvh !important;
   }
 }
+
+/* Ensure CSV import modal (and other large sheets) scroll properly on mobile.
+   When the viewport height is limited (e.g., on iPhone with URL bar),
+   cap the height of .sheet.large and allow vertical scrolling so the
+   confirm button is accessible. */
+@media (max-width: 760px) {
+  .sheet.large {
+    max-height: calc(88dvh);
+    overflow-y: auto;
+  }
+}
 /* Dashboard card for quick expense addition. This replaces the floating FAB. */
 .quickAddCard {
   margin-top: 14px;

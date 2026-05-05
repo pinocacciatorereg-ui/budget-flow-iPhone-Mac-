@@ -148,10 +148,10 @@ const defaultRecurrences = [
 // Default application data. This structure will be persisted in IndexedDB.
 export const defaultData = {
   // Schema and application versions for migrations
-  // Update schema and app versions for v26
-  schemaVersion: 26,
-  appVersion: '26',
-  version: 26,
+  // Update schema and app versions for v27
+  schemaVersion: 27,
+  appVersion: '27',
+  version: 27,
   // Top-level collections
   categories: defaultCats,
   transactions: demoTx,

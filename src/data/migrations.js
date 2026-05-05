@@ -57,12 +57,12 @@ function normalizeRecurrence(rec) {
 export function migrateData(data = {}) {
   const result = { ...defaultData, ...data };
   // Update version identifiers
-  // Update the schema version when migrating to the latest schema (v26).
-  result.schemaVersion = 26;
-  // Record the new application version when upgrading to v26.
-  result.appVersion = '26';
-  // The version field tracks the legacy localStorage version. Set to 26 for v26.
-  result.version = 26;
+  // Update the schema version when migrating to the latest schema (v27).
+  result.schemaVersion = 27;
+  // Record the new application version when upgrading to v27.
+  result.appVersion = '27';
+  // The version field tracks the legacy localStorage version. Set to 27 for v27.
+  result.version = 27;
   // Categories
   result.categories = (data.categories || defaultData.categories).map((c, i) => normalizeCategory(c, i));
   // Transactions
