@@ -157,6 +157,43 @@
   font-size: 14px;
 }
 
+/* v25 - refined Quick Add sheet and dashboard card */
+/* Reduce the size of the amount input to prevent it from dominating the quick add sheet. */
+.quick .bigAmount {
+  font-size: 36px !important;
+}
+@media (max-width: 760px) {
+  .quick .bigAmount {
+    font-size: 38px !important;
+  }
+  /* Limit the height of the quick add sheet on small screens */
+  .quickModal .sheet.quickV14 {
+    max-height: 82dvh !important;
+  }
+}
+/* Dashboard card for quick expense addition. This replaces the floating FAB. */
+.quickAddCard {
+  margin-top: 14px;
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  display: grid;
+  gap: 10px;
+}
+.quickAddCard h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.quickAddCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.quickAddCard button {
+  width: fit-content;
+}
+
 /* Lists for alerts and suggestions */
 .alertsList,
 .suggestionsList {
