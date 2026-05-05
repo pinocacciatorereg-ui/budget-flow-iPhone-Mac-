@@ -113,7 +113,7 @@ const demoTx=[{id:uid(),date:today(),description:'Stipendio',categoryId:'income'
 // `budgets[month][categoryId]` override the default.
 const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
-  version:20,
+  version:22,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -162,7 +162,7 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 20 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 22 }));
   }, [data]);
   return [data, setData];
 }
@@ -252,7 +252,7 @@ function App(){
 const makeBackup=()=>{
   download(
     `budgetflow-backup-${today()}.json`,
-    JSON.stringify({ app:'BudgetFlow', version:20, createdAt:new Date().toISOString(), data }, null, 2 )
+    JSON.stringify({ app:'BudgetFlow', version:22, createdAt:new Date().toISOString(), data }, null, 2 )
   );
   localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
   setLastB(lastBackup());
@@ -356,9 +356,18 @@ const makeBackup=()=>{
           />
         )}
       </main>
-      <button className="fab" onClick={() => setModal({ type: 'quick' })}>
-        <Plus />
-      </button>
+      {/* Floating action button: hidden on the Transazioni page to avoid overlapping cards. */}
+      {tab !== 'transactions' && (
+        <button
+          className="fab"
+          onClick={() => {
+            // On dashboard and other pages open the quick add modal.
+            setModal({ type: 'quick' });
+          }}
+        >
+          <Plus />
+        </button>
+      )}
       <nav className="bottom bottom4">
         <Tab id="dashboard" tab={tab} setTab={setTab} icon={<LayoutDashboard />} label="Dashboard" />
         <Tab id="transactions" tab={tab} setTab={setTab} icon={<ListChecks />} label="Transazioni" />
