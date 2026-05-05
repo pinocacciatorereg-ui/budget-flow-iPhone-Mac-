@@ -113,7 +113,7 @@ const demoTx=[{id:uid(),date:today(),description:'Stipendio',categoryId:'income'
 // `budgets[month][categoryId]` override the default.
 const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
-  version:22,
+  version:23,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -162,7 +162,7 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 22 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 23 }));
   }, [data]);
   return [data, setData];
 }
@@ -252,7 +252,7 @@ function App(){
 const makeBackup=()=>{
   download(
     `budgetflow-backup-${today()}.json`,
-    JSON.stringify({ app:'BudgetFlow', version:22, createdAt:new Date().toISOString(), data }, null, 2 )
+    JSON.stringify({ app:'BudgetFlow', version:23, createdAt:new Date().toISOString(), data }, null, 2 )
   );
   localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
   setLastB(lastBackup());
@@ -343,6 +343,7 @@ const makeBackup=()=>{
             cats={cats}
             month={month}
             prev={prev}
+            recurrenceInfo={recurrenceInfo}
           />
         )}
         {tab === 'backup' && (
@@ -368,11 +369,13 @@ const makeBackup=()=>{
           <Plus />
         </button>
       )}
-      <nav className="bottom bottom4">
+      {/* Navigation bar: include a new Report tab. The bottom class defaults to 5-column layout. */}
+      <nav className="bottom">
         <Tab id="dashboard" tab={tab} setTab={setTab} icon={<LayoutDashboard />} label="Dashboard" />
         <Tab id="transactions" tab={tab} setTab={setTab} icon={<ListChecks />} label="Transazioni" />
         <Tab id="categories" tab={tab} setTab={setTab} icon={<Tags />} label="Categorie" />
         <Tab id="recurrences" tab={tab} setTab={setTab} icon={<Repeat />} label="Ricorr." />
+        <Tab id="reports" tab={tab} setTab={setTab} icon={<BarChart3 />} label="Report" />
         <Tab id="backup" tab={tab} setTab={setTab} icon={<FileJson />} label="Backup" />
       </nav>
       {modal?.type === 'tx' && (
@@ -832,7 +835,215 @@ function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceI
     {editRec && <RecurrenceEditor rec={editRec} close={() => setEditRec(null)} />}
   </section>
 }
-function Reports({stats,txAll,cats,month,prev}){const last6=[...Array(6)].map((_,i)=>{const d=new Date(Number(month.slice(0,4)),Number(month.slice(5,7))-1-i,1);const m=monthKey(d);const spent=txAll.filter(t=>t.type==='expense'&&String(t.date).startsWith(m)).reduce((s,t)=>s+Number(t.amount),0);return{m,spent}}).reverse();const fixed=stats.byCat.filter(c=>c.kind==='fixed').reduce((s,c)=>s+c.spent,0);return <section className="panel"><h2>Report utili</h2><div className="reportGrid"><Insight text={`Spese fisse: ${eur(fixed)} · variabili: ${eur(stats.spent-fixed)}.`}/><Insight text={`Media giornaliera spese: ${eur(stats.spent/dayOfMonth())}.`}/><Insight text={`Previsione fine mese: ${eur(stats.spent/dayOfMonth()*daysInMonth(month))}.`}/>{stats.byCat.filter(c=>c.pct>=80).map(c=><Insight key={c.id} text={`${c.name} è al ${Math.round(c.pct)}% del budget.`}/>)}</div><h3>Ultimi 6 mesi</h3><div className="budgetList">{last6.map(x=><div className="budgetRow" key={x.m}><div>{x.m}</div><strong>{eur(x.spent)}</strong><div className="track"><i style={{width:`${Math.min(100,x.spent/Math.max(1,...last6.map(z=>z.spent))*100)}%`}}/></div></div>)}</div></section>}
+function Reports({ stats, txAll, cats, month, prev, recurrenceInfo }) {
+  // Compute totals for the last 6 months: expenses, incomes and net balance
+  const last6 = [...Array(6)].map((_, i) => {
+    const d = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 - i, 1);
+    const m = monthKey(d);
+    const spent = txAll
+      .filter((t) => t.type === 'expense' && String(t.date).startsWith(m))
+      .reduce((s, t) => s + Number(t.amount), 0);
+    const income = txAll
+      .filter((t) => t.type === 'income' && String(t.date).startsWith(m))
+      .reduce((s, t) => s + Number(t.amount), 0);
+    const net = income - spent;
+    // Label: show month abbreviation and year (e.g. 'Mag 24') in Italian
+    const label = new Date(m + '-01').toLocaleDateString('it-IT', { month: 'short', year: '2-digit' });
+    return { m, label, spent, income, net };
+  }).reverse();
+  // Top 5 categories by spending this month
+  const totalSpent = stats.spent || 0;
+  const topCats = stats.byCat
+    .filter((c) => c.type === 'expense')
+    .slice(0, 5)
+    .map((c) => {
+      const diffPrev = (c.spent || 0) - (prev[c.id] || 0);
+      const pct = totalSpent ? (c.spent / totalSpent) * 100 : 0;
+      return { ...c, diffPrev, pct };
+    });
+  // Fixed vs variable expenses
+  const fixedTotal = stats.byCat
+    .filter((c) => c.kind === 'fixed')
+    .reduce((s, c) => s + Number(c.spent || 0), 0);
+  const variableTotal = totalSpent - fixedTotal;
+  const fixedPct = totalSpent ? (fixedTotal / totalSpent) * 100 : 0;
+  // Daily and forecast calculations
+  const currentDay = dayOfMonth();
+  const daysTotal = daysInMonth(month);
+  const avgSpent = currentDay ? stats.spent / currentDay : 0;
+  const avgIncome = currentDay ? stats.income / currentDay : 0;
+  const remainingDays = Math.max(1, daysTotal - currentDay);
+  const dailyBudget = remainingDays ? stats.remaining / remainingDays : 0;
+  const predSpend = avgSpent * daysTotal;
+  const futureIncome = recurrenceInfo?.futureIncome || 0;
+  const futureExpense = recurrenceInfo?.futureExpense || 0;
+  const predNetBalance = (stats.income + futureIncome) - (predSpend + futureExpense);
+  // Income vs expenses ratio
+  const ratio = stats.income ? (stats.spent / stats.income) * 100 : 0;
+  // Alerts for categories out of control
+  const alerts = [];
+  stats.byCat.forEach((c) => {
+    // Only expense categories
+    if (c.type !== 'expense') return;
+    const pct = c.pct || 0;
+    const diff = (c.spent || 0) - (c.budget || 0);
+    if (pct >= 100) {
+      alerts.push(`${c.name} ha superato il budget di ${eur(Math.abs(diff))}.`);
+    } else if (pct >= 90) {
+      alerts.push(`${c.name} è al ${Math.round(pct)}% del budget.`);
+    } else if (pct >= 80) {
+      alerts.push(`${c.name} è all'${Math.round(pct)}% del budget.`);
+    }
+  });
+  // Alerts for strong growth compared to previous month
+  stats.byCat.forEach((c) => {
+    if (c.type !== 'expense') return;
+    const diffPrev = (c.spent || 0) - (prev[c.id] || 0);
+    if (diffPrev > 0) {
+      alerts.push(`${c.name} è aumentata di ${eur(diffPrev)} rispetto al mese scorso.`);
+    }
+  });
+  // Suggestions
+  const suggestions = [];
+  // Suggestions for categories over budget
+  stats.byCat.forEach((c) => {
+    if (c.type !== 'expense') return;
+    if (c.pct > 100) {
+      const over = (c.spent || 0) - (c.budget || 0);
+      suggestions.push(`Riduci ${c.name} di circa ${eur(Math.abs(over))} per rientrare nel budget.`);
+    }
+  });
+  if (dailyBudget < 0) {
+    suggestions.push(`Sei oltre budget di ${eur(Math.abs(stats.remaining))}. Dovresti ridurre le spese nei prossimi giorni.`);
+  } else if (avgSpent > dailyBudget) {
+    suggestions.push(
+      `Stai spendendo in media ${eur(avgSpent)} al giorno. Per rientrare nel budget dovresti limitarti a ${eur(dailyBudget)} al giorno.`
+    );
+  } else {
+    suggestions.push(`Hai ancora margine: puoi spendere circa ${eur(dailyBudget)} al giorno fino a fine mese.`);
+  }
+  if (predSpend > stats.budget) {
+    const over = predSpend - stats.budget;
+    suggestions.push(
+      `Se continui così, spenderai circa ${eur(predSpend)} a fine mese, oltre il budget di ${eur(over)}.`
+    );
+  }
+  if (fixedPct > 60) {
+    suggestions.push(
+      `Le spese fisse assorbono il ${Math.round(fixedPct)}% delle tue uscite: controlla abbonamenti e rate.`
+    );
+  }
+  // Highlight categories with significant increase
+  topCats.forEach((c) => {
+    if (c.diffPrev > 0) {
+      suggestions.push(`La categoria ${c.name} è cresciuta di ${eur(c.diffPrev)} rispetto al mese scorso.`);
+    }
+  });
+  return (
+    <section className="panel reports">
+      <h2>Analisi &amp; Report</h2>
+      {/* Last 6 months trend */}
+      <div className="reportSection">
+        <h3>Andamento ultimi 6 mesi</h3>
+        <div className="last6">
+          {last6.map((item) => (
+            <div key={item.m} className="monthCard">
+              <strong>{item.label}</strong>
+              <p>Uscite: {eur(item.spent)}</p>
+              <p>Entrate: {eur(item.income)}</p>
+              <p>Saldo: {eur(item.net)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Top categories */}
+      <div className="reportSection">
+        <h3>Top categorie</h3>
+        <div className="topCatsList">
+          {topCats.map((c) => (
+            <div key={c.id} className="topCatRow">
+              <div className="topCatInfo">
+                <span style={{ background: c.color }} className="catDot" />
+                <div className="catText">
+                  <b>{c.name}</b>
+                  <small>
+                    {eur(c.spent)} · {c.diffPrev >= 0 ? '+' : '-'}{eur(Math.abs(c.diffPrev))} vs mese scorso
+                  </small>
+                </div>
+              </div>
+              <div className="topCatStats">
+                <strong>{c.pct.toFixed(1)}%</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Fixed vs variable expenses */}
+      <div className="reportSection">
+        <h3>Fisse vs variabili</h3>
+        <p>Fisse: {eur(fixedTotal)} · Variabili: {eur(variableTotal)}</p>
+        <p>{`Il ${Math.round(fixedPct)}% delle tue uscite è composto da spese fisse.`}</p>
+      </div>
+      {/* Daily averages and forecast */}
+      <div className="reportSection">
+        <h3>Previsione fine mese</h3>
+        <p>Spesa attuale: {eur(stats.spent)}</p>
+        <p>Media giornaliera: {eur(avgSpent)}</p>
+        <p>Previsione spesa totale: {eur(predSpend)}</p>
+        <p>Saldo previsto: {eur(predNetBalance)}</p>
+      </div>
+      {/* Daily budget calculation */}
+      <div className="reportSection">
+        <h3>Quanto puoi spendere al giorno</h3>
+        {stats.remaining >= 0 ? (
+          <p>
+            Ti restano {eur(stats.remaining)}. Puoi spendere circa {eur(dailyBudget)} al giorno fino a fine mese.
+          </p>
+        ) : (
+          <p>Sei oltre budget di {eur(Math.abs(stats.remaining))}. Dovresti ridurre le spese nei prossimi giorni.</p>
+        )}
+      </div>
+      {/* Income vs expenses */}
+      <div className="reportSection">
+        <h3>Confronto entrate/uscite</h3>
+        {stats.income > 0 ? (
+          <p>
+            Entrate: {eur(stats.income)} · Uscite: {eur(stats.spent)} · Hai speso il {Math.round(ratio)}% delle
+            entrate.
+          </p>
+        ) : (
+          <p>Non hai ancora registrato entrate questo mese.</p>
+        )}
+      </div>
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="reportSection">
+          <h3>Alert categorie fuori controllo</h3>
+          <ul className="alertsList">
+            {alerts.map((msg, idx) => (
+              <li key={idx} className="insight">
+                {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="reportSection">
+          <h3>Suggerimenti</h3>
+          <ul className="suggestionsList">
+            {suggestions.map((msg, idx) => (
+              <li key={idx} className="insight">
+                {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
 function Backup({lastB,dirty,makeBackup,restoreBackup,data,setData}){const file=useRef();return <section className="panel"><h2>Backup & sicurezza</h2><div className="backupBox"><p><b>Ultimo backup:</b> {lastB?new Date(lastB).toLocaleString('it-IT'):'mai'}</p><p><b>Modifiche non salvate in backup:</b> {dirty}</p><button className="primary" onClick={makeBackup}><Download size={16}/>Esporta backup completo</button><button onClick={()=>file.current.click()}><RotateCcw size={16}/>Ripristina backup</button><input hidden type="file" accept=".json" ref={file} onChange={e=>restoreBackup(e.target.files[0])}/></div><PinSettings data={data} setData={setData}/></section>}
 function PinSettings({data,setData}){const [pin,setPin]=useState('');return <div className="backupBox"><h3>PIN locale</h3><p>Protegge l’apertura su questo dispositivo. Non è sincronizzato.</p><input placeholder="Nuovo PIN" type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)}/><button onClick={()=>{setData(d=>({...d,settings:{...d.settings,pin}}));alert(pin?'PIN impostato':'PIN rimosso')}}>{pin?'Imposta PIN':'Rimuovi PIN'}</button></div>}
 function Reminder({makeBackup,close}){return <div className="modal"><div className="sheet"><h2>Backup consigliato</h2><p>Non fai un backup da 7 giorni. Vuoi salvare ora su iCloud Drive?</p><button className="primary" onClick={makeBackup}>Salva backup</button><button onClick={close}>Più tardi</button></div></div>}

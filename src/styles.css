@@ -80,4 +80,140 @@
     padding-bottom: 180px;
   }
 }
+
+/* v23 - Report & Analisi styling */
+/* Layout container for the entire reports section */
+.reports {
+  display: grid;
+  gap: 20px;
+}
+
+/* Each report section gets some separation and spacing */
+.reportSection {
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.reportSection:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+/* Grid for the last six months cards */
+.last6 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.monthCard {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 14px;
+  background: color-mix(in oklab, var(--card), var(--bg) 20%);
+  display: grid;
+  gap: 4px;
+}
+
+/* Top categories list */
+.topCatsList {
+  display: grid;
+  gap: 10px;
+}
+.topCatRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  background: color-mix(in oklab, var(--card), var(--bg) 20%);
+}
+.topCatInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.catDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.catText b {
+  display: block;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.catText small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.topCatStats strong {
+  font-size: 14px;
+}
+
+/* Lists for alerts and suggestions */
+.alertsList,
+.suggestionsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+/* Each list item uses the existing insight style for visual consistency */
+.alertsList li.insight,
+.suggestionsList li.insight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--card), var(--bg) 30%);
+  font-size: 14px;
+}
+
+/* Responsive tweaks for report sections on small screens */
+@media (max-width: 760px) {
+  .reports {
+    gap: 14px;
+  }
+  .reportSection {
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+  }
+  .last6 {
+    grid-template-columns: 1fr;
+  }
+  .monthCard {
+    padding: 12px;
+    border-radius: 16px;
+  }
+  .topCatRow {
+    padding: 10px;
+    border-radius: 16px;
+  }
+  .catText b {
+    max-width: 100px;
+    font-size: 13px;
+  }
+  .catText small {
+    font-size: 11px;
+  }
+  .topCatStats strong {
+    font-size: 13px;
+  }
+}
+
+/* Update bottom nav grid for six tabs in v23 */
+.bottom {
+  grid-template-columns: repeat(6, 1fr);
+}
 @media(max-height:720px) and (max-width:760px){.quickModal .sheet.quickV14{max-height:82dvh;gap:7px}.quickHead b{font-size:18px}.quick .bigAmount{font-size:32px!important;min-height:66px;padding:8px!important}.suggestion{display:none}.quickChips{max-height:126px}.favoriteEditor{max-height:185px}.quickNote{display:none}.saveFast{padding:13px}}
