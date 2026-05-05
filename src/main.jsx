@@ -20,9 +20,26 @@ function parseCsv(text){const rows=[];let row=[],cur='',q=false;const first=text
 const defaultCats=[['Spesa',400,'variable'],['Bar / Colazioni / Snack',250,'variable'],['Asporto / Delivery',200,'variable'],['Casa',160,'fixed'],['Affitto',650,'fixed'],['Bollette',90,'fixed'],['Trasporti',70,'variable'],['Salute',50,'variable'],['Shopping / Personale',50,'variable'],['Tempo Libero',30,'variable'],['Abbonamenti',25,'fixed'],['Rate / Finanziamenti',10,'fixed'],['Regali',10,'variable'],['Viaggi',10,'variable'],['Varie / Altro',10,'variable']].map((x,i)=>({id:uid(),name:x[0],budget:x[1],kind:x[2],type:'expense',color:COLORS[i%COLORS.length]}));
 const demoTx=[{id:uid(),date:today(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,notes:'Entrata ricorrente'}];
 [387,240,200,150,114,80,60,48,40,25,20,6,2,0,0].forEach((a,i)=>{if(a)demoTx.push({id:uid(),date:today(),description:defaultCats[i].name,categoryId:defaultCats[i].id,type:'expense',amount:a,notes:''})});
-const defaultData={version:16,categories:defaultCats,transactions:demoTx,recurrences:[{id:uid(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,day:1,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Affitto',categoryId:defaultCats[4].id,type:'expense',amount:650,day:1,active:true,frequency:'monthly',remindDays:3,autoApply:false},{id:uid(),description:'Netflix',categoryId:defaultCats[10].id,type:'expense',amount:12.99,day:7,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Bollette luce/gas',categoryId:defaultCats[5].id,type:'expense',amount:85,day:15,active:true,frequency:'monthly',remindDays:5,autoApply:false},{id:uid(),description:'Rata finanziamento',categoryId:defaultCats[11].id,type:'expense',amount:120,day:20,active:true,frequency:'monthly',remindDays:3,autoApply:false}],settings:{pin:'',lastCategoryId:defaultCats[0].id,dirtyCount:0,quickFavorites:defaultCats.slice(0,6).map(c=>c.id)}};
+// Updated to version 17 for the v17 release. When merging user data with defaults
+// we use this version to signal the current schema. This must increment on
+// breaking changes.
+const defaultData={version:17,categories:defaultCats,transactions:demoTx,recurrences:[{id:uid(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,day:1,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Affitto',categoryId:defaultCats[4].id,type:'expense',amount:650,day:1,active:true,frequency:'monthly',remindDays:3,autoApply:false},{id:uid(),description:'Netflix',categoryId:defaultCats[10].id,type:'expense',amount:12.99,day:7,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Bollette luce/gas',categoryId:defaultCats[5].id,type:'expense',amount:85,day:15,active:true,frequency:'monthly',remindDays:5,autoApply:false},{id:uid(),description:'Rata finanziamento',categoryId:defaultCats[11].id,type:'expense',amount:120,day:20,active:true,frequency:'monthly',remindDays:3,autoApply:false}],settings:{pin:'',lastCategoryId:defaultCats[0].id,dirtyCount:0,quickFavorites:defaultCats.slice(0,6).map(c=>c.id)}};
 
-function useData(){const [data,setData]=useState(()=>{try{return {...defaultData,...JSON.parse(localStorage.getItem('budgetflow')||'null')}}catch{return defaultData}});useEffect(()=>{localStorage.setItem('budgetflow',JSON.stringify({...data,version:16}));},[data]);return [data,setData]}
+function useData(){
+  // Load persisted data from localStorage and merge with defaults. Use try/catch in case of malformed JSON.
+  const [data,setData] = useState(() => {
+    try {
+      return { ...defaultData, ...JSON.parse(localStorage.getItem('budgetflow') || 'null') };
+    } catch {
+      return defaultData;
+    }
+  });
+  // Save current data back to localStorage on every change, carrying the latest version number.
+  useEffect(() => {
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 17 }));
+  }, [data]);
+  return [data, setData];
+}
 function lastBackup(){return localStorage.getItem('budgetflow_last_backup')||''}
 function daysFrom(iso){return iso?Math.floor((Date.now()-new Date(iso).getTime())/86400000):999}
 function download(name,content,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -44,7 +61,19 @@ function App(){
  const delCat=id=>{if(confirm('Eliminare categoria e transazioni collegate?'))setData(d=>({...d,categories:d.categories.filter(c=>c.id!==id),transactions:d.transactions.filter(t=>t.categoryId!==id)}))};
  const copyPrevBudget=()=>{const map={};txAll.filter(t=>String(t.date).startsWith(prevMonth(month))&&t.type==='expense').forEach(t=>map[t.categoryId]=(map[t.categoryId]||0)+Number(t.amount));setData(d=>({...d,categories:d.categories.map(c=>c.type==='expense'?{...c,budget:map[c.id]||c.budget}:c)}));};
  const exportCsv=()=>{const rows=[['Data','Descrizione','Categoria','Tipo','Importo','Note'],...txAll.map(t=>[t.date,t.description,cats.find(c=>c.id===t.categoryId)?.name||'Accrediti',t.type,t.amount,t.notes||''])];download('budgetflow-transazioni.csv',rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n'),'text/csv')};
- const makeBackup=()=>{download(`budgetflow-backup-${today()}.json`,JSON.stringify({app:'BudgetFlow',version:16,createdAt:new Date().toISOString(),data},null,2));localStorage.setItem('budgetflow_last_backup',new Date().toISOString());setLastB(lastBackup());setData(d=>({...d,settings:{...d.settings,dirtyCount:0}}));setModal(null)};
+// Export a backup of all data to a JSON file. The exported backup contains
+// the current version number (v17) so that future restores can handle schema
+// changes gracefully.
+const makeBackup=()=>{
+  download(
+    `budgetflow-backup-${today()}.json`,
+    JSON.stringify({ app:'BudgetFlow', version:17, createdAt:new Date().toISOString(), data }, null, 2 )
+  );
+  localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
+  setLastB(lastBackup());
+  setData(d => ({ ...d, settings: { ...d.settings, dirtyCount: 0 } }));
+  setModal(null);
+};
  const restoreBackup=async f=>{if(!f)return;const obj=JSON.parse(await f.text());if(!obj?.data?.transactions||!obj?.data?.categories)return alert('Backup non valido');if(confirm(`Ripristinare backup del ${new Date(obj.createdAt||Date.now()).toLocaleString('it-IT')}?`)){setData({...defaultData,...obj.data});setModal(null)}};
  const prepareCsv=async f=>{if(!f)return;const rows=parseCsv(await f.text());const header=(rows[0]||[]).map(norm);const idx=names=>names.map(norm).map(n=>header.indexOf(n)).find(i=>i>=0);const amountI=idx(['importo','amount','valore','spesa']);if(amountI===undefined)return alert('Serve una colonna Importo');const dateI=idx(['data','date']),descI=idx(['descrizione','description','causale','nome']),catI=idx(['categoria','category']),typeI=idx(['tipo','type']),notesI=idx(['note','notes']);const mapped=rows.slice(1).map((r,i)=>{const rawType=norm(typeI!==undefined?r[typeI]:'');const amount=parseEuro(r[amountI]);const catName=catI!==undefined?r[catI]:'Varie / Altro';const type=rawType.includes('entr')||rawType==='income'||norm(catName).includes('accredit')?'income':'expense';return{id:uid(),date:normDate(dateI!==undefined?r[dateI]:today()),description:(descI!==undefined?r[descI]:'Import CSV')||'Import CSV',categoryName:catName,type,amount:Math.abs(amount),notes:notesI!==undefined?r[notesI]:'',sourceRow:i+2}}).filter(x=>x.amount);const existing=new Set(txAll.map(t=>`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));setPreview({rows:mapped,duplicates:mapped.filter(t=>existing.has(`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`)).length})};
  const confirmImport=()=>{const rows=preview.rows;setData(d=>{const categories=[...d.categories];const existing=new Set(d.transactions.map(t=>`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));const transactions=[];for(const r of rows){if(existing.has(`${r.date}|${norm(r.description)}|${r.amount}|${r.type}`))continue;let categoryId='income';if(r.type==='expense'){let c=categories.find(c=>norm(c.name)===norm(r.categoryName));if(!c){c={id:uid(),name:r.categoryName||'Varie / Altro',budget:0,type:'expense',kind:'variable',color:COLORS[categories.length%COLORS.length]};categories.push(c)}categoryId=c.id}transactions.push({...r,categoryId});}return{...d,categories,transactions:[...transactions,...d.transactions],settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}}});alert('Importazione completata. I duplicati rilevati sono stati saltati.');setPreview(null)};
@@ -101,7 +130,7 @@ function QuickAdd({cats,last,settings,setData,txAll,save,close}){
 function Categories({cats,saveCat,delCat,edit,add,copyPrevBudget}){return <section className="panel"><div className="sectionTitle"><h2>Budget categorie</h2><div className="actions"><button onClick={copyPrevBudget}>Copia mese scorso</button><button className="primary" onClick={add}><Plus size={16}/>Nuova</button></div></div><div className="catGrid">{cats.map(c=><div className="catCard" key={c.id}><span style={{background:c.color}}/><div><b>{c.name}</b><p>{c.kind==='fixed'?'Fissa':'Variabile'} · {eur(c.budget)}</p></div><button onClick={()=>edit(c)}>Modifica</button><button onClick={()=>delCat(c.id)}><Trash2 size={16}/></button></div>)}</div></section>}
 function CatModal({cat,save,close}){const [f,setF]=useState(cat||{name:'',budget:'',type:'expense',kind:'variable',color:COLORS[0]});return <div className="modal"><form className="sheet" onSubmit={e=>{e.preventDefault();save({...f,budget:parseEuro(f.budget)})}}><button className="x" type="button" onClick={close}><X/></button><h2>Categoria</h2><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input inputMode="decimal" placeholder="Budget mensile" value={f.budget} onChange={e=>setF({...f,budget:e.target.value})}/><select value={f.kind} onChange={e=>setF({...f,kind:e.target.value})}><option value="variable">Variabile</option><option value="fixed">Fissa</option></select><input type="color" value={f.color} onChange={e=>setF({...f,color:e.target.value})}/><button className="primary">Salva</button></form></div>}
 function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceInfo}){
- const templates=[
+  const templates=[
   {description:'Stipendio',type:'income',categoryId:'income',amount:1950,day:1,remindDays:2},
   {description:'Affitto',type:'expense',hint:'Affitto',amount:650,day:1,remindDays:3},
   {description:'Netflix / Streaming',type:'expense',hint:'Abbonamenti',amount:12.99,day:7,remindDays:2},
@@ -109,7 +138,12 @@ function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceI
   {description:'Rata / Finanziamento',type:'expense',hint:'Rate / Finanziamenti',amount:120,day:20,remindDays:3}
  ];
  const defaultCat=cats[0]?.id;
- const [f,setF]=useState({description:'',amount:'',day:1,type:'expense',categoryId:defaultCat,active:true,remindDays:3,frequency:'monthly'});
+  // State for the new recurrence form
+  const [f,setF]=useState({description:'',amount:'',day:1,type:'expense',categoryId:defaultCat,active:true,remindDays:3,frequency:'monthly'});
+  // Toggle to show/hide the new recurrence form (mobile friendly)
+  const [showAdd,setShowAdd] = useState(false);
+  // Holds the recurrence currently being edited. When non-null, shows edit modal.
+  const [editRec,setEditRec] = useState(null);
  const catName=id=>cats.find(c=>c.id===id)?.name||'Accrediti';
  const save=()=>{if(!f.description||!parseEuro(f.amount))return alert('Inserisci descrizione e importo');setData(d=>({...d,recurrences:[...(d.recurrences||[]),{...f,id:uid(),amount:parseEuro(f.amount),day:Number(f.day||1),remindDays:Number(f.remindDays||0),frequency:'monthly'}],settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}}));setF({...f,description:'',amount:''})};
  const addTemplate=t=>{const c=t.categoryId||cats.find(x=>norm(x.name).includes(norm(t.hint||'')))?.id||defaultCat;setF({...f,...t,categoryId:c,amount:String(t.amount).replace('.',','),active:true,frequency:'monthly'})};
@@ -117,18 +151,117 @@ function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceI
  const update=(id,patch)=>setData(d=>({...d,recurrences:(d.recurrences||[]).map(r=>r.id===id?{...r,...patch,amount:patch.amount!==undefined?parseEuro(patch.amount):r.amount,day:patch.day!==undefined?Number(patch.day):r.day,remindDays:patch.remindDays!==undefined?Number(patch.remindDays):r.remindDays}:r)}));
  const remove=id=>{if(confirm('Eliminare questa ricorrenza?'))setData(d=>({...d,recurrences:(d.recurrences||[]).filter(x=>x.id!==id)}))};
  const upcoming=(recurrenceInfo?.upcoming||[]).slice(0,5);
- return <section className="panel recurrencesV15">
-  <div className="sectionTitle"><div><h2>Ricorrenze automatiche</h2><p>Affitto, stipendio, abbonamenti, bollette e rate senza reinserirli ogni mese.</p></div><button className="primary" onClick={applyRecurrences}><Repeat size={16}/>Applica al mese</button></div>
-  <div className="forecastGrid">
-   <div><span>Saldo attuale</span><b>{eur((txAll||[]).filter(t=>String(t.date).startsWith(month)).reduce((s,t)=>s+(t.type==='income'?Number(t.amount):-Number(t.amount)),0))}</b></div>
-   <div><span>Ricorrenze future</span><b>{eur((recurrenceInfo?.futureIncome||0)-(recurrenceInfo?.futureExpense||0))}</b></div>
-   <div className="accent"><span>Saldo previsto fine mese</span><b>{eur(recurrenceInfo?.forecastBalance||0)}</b></div>
-  </div>
-  {upcoming.length>0&&<div className="dueBox"><CalendarClock/><div><b>Promemoria scadenze</b>{upcoming.map(r=><p key={r.id}>{r.description}: {eur(r.amount)} il {new Date(r.date).toLocaleDateString('it-IT')} {r.diff===0?'· oggi':`· tra ${r.diff} giorni`}</p>)}</div></div>}
-  <h3>Modelli rapidi</h3><div className="templateChips">{templates.map(t=><button key={t.description} onClick={()=>addTemplate(t)}><Plus size={14}/>{t.description}</button>)}</div>
-  <div className="recForm smart"><input placeholder="Descrizione, es. Affitto" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><input placeholder="Importo" inputMode="decimal" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/><input type="number" min="1" max="31" value={f.day} onChange={e=>setF({...f,day:e.target.value})}/><select value={f.type} onChange={e=>setF({...f,type:e.target.value,categoryId:e.target.value==='income'?'income':defaultCat})}><option value="expense">Uscita</option><option value="income">Entrata</option></select>{f.type==='expense'&&<select value={f.categoryId} onChange={e=>setF({...f,categoryId:e.target.value})}>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}<input type="number" min="0" max="15" value={f.remindDays} onChange={e=>setF({...f,remindDays:e.target.value})} title="Giorni di preavviso"/><button onClick={save}>Aggiungi</button></div>
-  <div className="txCards recCards">{(data.recurrences||[]).map(r=>{const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;const exists=txAll.some(t=>t.date===date&&t.description===r.description&&Number(t.amount)===Number(r.amount)&&t.type===r.type);return <div className={`txCard recCard ${!r.active?'muted':''}`} key={r.id}><CalendarClock/><div className="txMain"><b>{r.description}</b><span>{r.type==='income'?'Entrata':'Uscita'} · giorno {r.day} · {catName(r.categoryId)} · avviso {r.remindDays??0}g</span><small>{exists?'Già applicata al mese corrente':'Da applicare al mese corrente'}</small></div><strong className={r.type==='income'?'pos':'neg'}>{r.type==='income'?'+':'-'}{eur(r.amount)}</strong><button onClick={()=>toggle(r.id)}>{r.active?'On':'Off'}</button><button onClick={()=>remove(r.id)}><Trash2 size={16}/></button></div>})}</div>
- </section>
+  // Editor modal for modifying an existing recurrence. When `editRec` holds a recurrence, this
+  // component is rendered. It uses its own local state to allow editing fields before saving.
+  const RecurrenceEditor = ({rec, close}) => {
+    const [temp,setTemp] = useState(() => ({
+      id: rec.id,
+      description: rec.description || '',
+      amount: String(rec.amount ?? '').replace('.', ','),
+      day: rec.day ?? 1,
+      type: rec.type || 'expense',
+      categoryId: rec.categoryId || defaultCat,
+      remindDays: rec.remindDays ?? 0,
+      active: rec.active ?? true
+    }));
+    const saveEdit = () => {
+      if(!temp.description || !parseEuro(temp.amount)) { alert('Inserisci descrizione e importo'); return; }
+      update(temp.id, {
+        description: temp.description,
+        amount: temp.amount,
+        day: temp.day,
+        type: temp.type,
+        categoryId: temp.type==='income' ? 'income' : temp.categoryId,
+        remindDays: temp.remindDays,
+        active: temp.active
+      });
+      setEditRec(null);
+    };
+    return <div className="modal">
+      <form className="sheet" onSubmit={e => { e.preventDefault(); saveEdit(); }}>
+        <button className="x" type="button" onClick={close}><X/></button>
+        <h2>Modifica ricorrenza</h2>
+        <input placeholder="Descrizione" value={temp.description} onChange={e=>setTemp({...temp, description: e.target.value})}/>
+        <input placeholder="Importo" inputMode="decimal" value={temp.amount} onChange={e=>setTemp({...temp, amount: e.target.value})}/>
+        <input type="number" min="1" max="31" value={temp.day} onChange={e=>setTemp({...temp, day: e.target.value})}/>
+        <select value={temp.type} onChange={e=>setTemp({...temp, type: e.target.value, categoryId: e.target.value==='income'?'income':temp.categoryId})}>
+          <option value="expense">Uscita</option>
+          <option value="income">Entrata</option>
+        </select>
+        {temp.type==='expense' && <select value={temp.categoryId} onChange={e=>setTemp({...temp, categoryId: e.target.value})}>{cats.map(c=> <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+        <input type="number" min="0" max="15" value={temp.remindDays} onChange={e=>setTemp({...temp, remindDays: e.target.value})} title="Giorni di preavviso"/>
+        <label style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <input type="checkbox" checked={temp.active} onChange={e=>setTemp({...temp, active: e.target.checked})}/>
+          Attiva
+        </label>
+        <button className="primary" type="submit">Salva</button>
+      </form>
+    </div>;
+  };
+  return <section className="panel recurrencesV15">
+    <div className="sectionTitle">
+      <div>
+        <h2>Ricorrenze automatiche</h2>
+        <p>Affitto, stipendio, abbonamenti, bollette e rate senza reinserirli ogni mese.</p>
+      </div>
+      <button className="primary" onClick={applyRecurrences}><Repeat size={16}/>Applica al mese</button>
+    </div>
+    <div className="forecastGrid">
+      <div>
+        <span>Saldo attuale</span>
+        <b>{eur((txAll||[]).filter(t=>String(t.date).startsWith(month)).reduce((s,t)=>s+(t.type==='income'?Number(t.amount):-Number(t.amount)),0))}</b>
+      </div>
+      <div>
+        <span>Ricorrenze future</span>
+        <b>{eur((recurrenceInfo?.futureIncome||0)-(recurrenceInfo?.futureExpense||0))}</b>
+      </div>
+      <div className="accent">
+        <span>Saldo previsto fine mese</span>
+        <b>{eur(recurrenceInfo?.forecastBalance||0)}</b>
+      </div>
+    </div>
+    {upcoming.length>0 && <div className="dueBox"><CalendarClock/><div><b>Promemoria scadenze</b>{upcoming.map(r => <p key={r.id}>{r.description}: {eur(r.amount)} il {new Date(r.date).toLocaleDateString('it-IT')} {r.diff===0 ? '· oggi' : `· tra ${r.diff} giorni`}</p>)}</div></div>}
+    <h3>Modelli rapidi</h3>
+    <div className="templateChips">{templates.map(t => <button key={t.description} onClick={() => addTemplate(t)}><Plus size={14}/>{t.description}</button>)}</div>
+    {/* Collapsible form for adding a new recurrence */}
+    <div style={{margin:'8px 0'}}>
+      {!showAdd ? <button className="primary" onClick={() => setShowAdd(true)}><Plus size={14}/>Aggiungi ricorrenza</button> :
+        <div className="recForm smart" style={{marginTop:'8px'}}>
+          <input placeholder="Descrizione" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/>
+          <input placeholder="Importo" inputMode="decimal" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/>
+          <input type="number" min="1" max="31" value={f.day} onChange={e=>setF({...f,day:e.target.value})}/>
+          <select value={f.type} onChange={e=>setF({...f,type:e.target.value,categoryId:e.target.value==='income'?'income':defaultCat})}>
+            <option value="expense">Uscita</option>
+            <option value="income">Entrata</option>
+          </select>
+          {f.type==='expense' && <select value={f.categoryId} onChange={e=>setF({...f,categoryId:e.target.value})}>{cats.map(c=> <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+          <input type="number" min="0" max="15" value={f.remindDays} onChange={e=>setF({...f,remindDays:e.target.value})} title="Giorni di preavviso"/>
+          <button onClick={() => { save(); setShowAdd(false); }}>Aggiungi</button>
+        </div>
+      }
+    </div>
+    <div className="txCards recCards">
+      {(data.recurrences||[]).map(r => {
+        const date = `${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;
+        const exists = txAll.some(t => t.date===date && t.description===r.description && Number(t.amount)===Number(r.amount) && t.type===r.type);
+        const color = r.type === 'income' ? '#22c55e' : (cats.find(c => c.id === r.categoryId)?.color || '#3b82f6');
+        return <div className={`txCard recCard ${!r.active?'muted':''}`} style={{gridTemplateColumns:'auto 14px 1fr auto auto auto auto'}} key={r.id}>
+          <CalendarClock/>
+          <span className="dot" style={{background: color}}></span>
+          <div className="txMain">
+            <b>{r.description}</b>
+            <span>{r.type==='income'?'Entrata':'Uscita'} · giorno {r.day} · {catName(r.categoryId)} · avviso {r.remindDays??0}g</span>
+            <small>{exists ? 'Già applicata al mese corrente' : 'Da applicare al mese corrente'}</small>
+          </div>
+          <strong className={r.type==='income' ? 'pos' : 'neg'}>{r.type==='income' ? '+' : '-'}{eur(r.amount)}</strong>
+          <button onClick={() => toggle(r.id)}>{r.active ? 'On' : 'Off'}</button>
+          <button onClick={() => setEditRec(r)}>Modifica</button>
+          <button onClick={() => remove(r.id)}><Trash2 size={16}/></button>
+        </div>;
+      })}
+    </div>
+    {editRec && <RecurrenceEditor rec={editRec} close={() => setEditRec(null)} />}
+  </section>
 }
 function Reports({stats,txAll,cats,month,prev}){const last6=[...Array(6)].map((_,i)=>{const d=new Date(Number(month.slice(0,4)),Number(month.slice(5,7))-1-i,1);const m=monthKey(d);const spent=txAll.filter(t=>t.type==='expense'&&String(t.date).startsWith(m)).reduce((s,t)=>s+Number(t.amount),0);return{m,spent}}).reverse();const fixed=stats.byCat.filter(c=>c.kind==='fixed').reduce((s,c)=>s+c.spent,0);return <section className="panel"><h2>Report utili</h2><div className="reportGrid"><Insight text={`Spese fisse: ${eur(fixed)} · variabili: ${eur(stats.spent-fixed)}.`}/><Insight text={`Media giornaliera spese: ${eur(stats.spent/dayOfMonth())}.`}/><Insight text={`Previsione fine mese: ${eur(stats.spent/dayOfMonth()*daysInMonth(month))}.`}/>{stats.byCat.filter(c=>c.pct>=80).map(c=><Insight key={c.id} text={`${c.name} è al ${Math.round(c.pct)}% del budget.`}/>)}</div><h3>Ultimi 6 mesi</h3><div className="budgetList">{last6.map(x=><div className="budgetRow" key={x.m}><div>{x.m}</div><strong>{eur(x.spent)}</strong><div className="track"><i style={{width:`${Math.min(100,x.spent/Math.max(1,...last6.map(z=>z.spent))*100)}%`}}/></div></div>)}</div></section>}
 function Backup({lastB,dirty,makeBackup,restoreBackup,data,setData}){const file=useRef();return <section className="panel"><h2>Backup & sicurezza</h2><div className="backupBox"><p><b>Ultimo backup:</b> {lastB?new Date(lastB).toLocaleString('it-IT'):'mai'}</p><p><b>Modifiche non salvate in backup:</b> {dirty}</p><button className="primary" onClick={makeBackup}><Download size={16}/>Esporta backup completo</button><button onClick={()=>file.current.click()}><RotateCcw size={16}/>Ripristina backup</button><input hidden type="file" accept=".json" ref={file} onChange={e=>restoreBackup(e.target.files[0])}/></div><PinSettings data={data} setData={setData}/></section>}
