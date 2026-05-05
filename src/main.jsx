@@ -20,23 +20,51 @@ function parseCsv(text){const rows=[];let row=[],cur='',q=false;const first=text
 const defaultCats=[['Spesa',400,'variable'],['Bar / Colazioni / Snack',250,'variable'],['Asporto / Delivery',200,'variable'],['Casa',160,'fixed'],['Affitto',650,'fixed'],['Bollette',90,'fixed'],['Trasporti',70,'variable'],['Salute',50,'variable'],['Shopping / Personale',50,'variable'],['Tempo Libero',30,'variable'],['Abbonamenti',25,'fixed'],['Rate / Finanziamenti',10,'fixed'],['Regali',10,'variable'],['Viaggi',10,'variable'],['Varie / Altro',10,'variable']].map((x,i)=>({id:uid(),name:x[0],budget:x[1],kind:x[2],type:'expense',color:COLORS[i%COLORS.length]}));
 const demoTx=[{id:uid(),date:today(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,notes:'Entrata ricorrente'}];
 [387,240,200,150,114,80,60,48,40,25,20,6,2,0,0].forEach((a,i)=>{if(a)demoTx.push({id:uid(),date:today(),description:defaultCats[i].name,categoryId:defaultCats[i].id,type:'expense',amount:a,notes:''})});
-// Updated to version 17 for the v17 release. When merging user data with defaults
+// Updated to version 18 for the v18 release. When merging user data with defaults
 // we use this version to signal the current schema. This must increment on
-// breaking changes.
-const defaultData={version:17,categories:defaultCats,transactions:demoTx,recurrences:[{id:uid(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,day:1,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Affitto',categoryId:defaultCats[4].id,type:'expense',amount:650,day:1,active:true,frequency:'monthly',remindDays:3,autoApply:false},{id:uid(),description:'Netflix',categoryId:defaultCats[10].id,type:'expense',amount:12.99,day:7,active:true,frequency:'monthly',remindDays:2,autoApply:false},{id:uid(),description:'Bollette luce/gas',categoryId:defaultCats[5].id,type:'expense',amount:85,day:15,active:true,frequency:'monthly',remindDays:5,autoApply:false},{id:uid(),description:'Rata finanziamento',categoryId:defaultCats[11].id,type:'expense',amount:120,day:20,active:true,frequency:'monthly',remindDays:3,autoApply:false}],settings:{pin:'',lastCategoryId:defaultCats[0].id,dirtyCount:0,quickFavorites:defaultCats.slice(0,6).map(c=>c.id)}};
+// breaking changes.  The `budgets` field allows storing per-month budgets for each
+// category.  Initially it is empty and budgets fall back to each category's
+// `budget` property.  When editing budgets for a specific month, entries in
+// `budgets[month][categoryId]` override the default.
+const defaultData={
+  version:18,
+  categories:defaultCats,
+  transactions:demoTx,
+  recurrences:[
+    {id:uid(),description:'Stipendio',categoryId:'income',type:'income',amount:1950,day:1,active:true,frequency:'monthly',remindDays:2,autoApply:false},
+    {id:uid(),description:'Affitto',categoryId:defaultCats[4].id,type:'expense',amount:650,day:1,active:true,frequency:'monthly',remindDays:3,autoApply:false},
+    {id:uid(),description:'Netflix',categoryId:defaultCats[10].id,type:'expense',amount:12.99,day:7,active:true,frequency:'monthly',remindDays:2,autoApply:false},
+    {id:uid(),description:'Bollette luce/gas',categoryId:defaultCats[5].id,type:'expense',amount:85,day:15,active:true,frequency:'monthly',remindDays:5,autoApply:false},
+    {id:uid(),description:'Rata finanziamento',categoryId:defaultCats[11].id,type:'expense',amount:120,day:20,active:true,frequency:'monthly',remindDays:3,autoApply:false}
+  ],
+  settings:{
+    pin:'',
+    lastCategoryId:defaultCats[0].id,
+    dirtyCount:0,
+    quickFavorites:defaultCats.slice(0,6).map(c=>c.id)
+  },
+  // monthly budgets keyed by YYYY-MM. Each entry contains categoryId => budget.
+  budgets:{}
+};
 
 function useData(){
   // Load persisted data from localStorage and merge with defaults. Use try/catch in case of malformed JSON.
   const [data,setData] = useState(() => {
     try {
-      return { ...defaultData, ...JSON.parse(localStorage.getItem('budgetflow') || 'null') };
+      const saved = JSON.parse(localStorage.getItem('budgetflow') || 'null') || {};
+      // Merge saved data with defaults. Combine budgets so that saved budgets override defaults
+      return {
+        ...defaultData,
+        ...saved,
+        budgets:{...defaultData.budgets, ...(saved.budgets || {})}
+      };
     } catch {
       return defaultData;
     }
   });
   // Save current data back to localStorage on every change, carrying the latest version number.
   useEffect(() => {
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 17 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 18 }));
   }, [data]);
   return [data, setData];
 }
@@ -48,7 +76,22 @@ function App(){
  const [data,setData]=useData(); const [tab,setTab]=useState('dashboard'); const [month,setMonth]=useState(monthKey()); const [modal,setModal]=useState(null); const [query,setQuery]=useState(''); const [selected,setSelected]=useState([]); const [lastB,setLastB]=useState(lastBackup()); const [locked,setLocked]=useState(Boolean(data.settings?.pin)); const [pinTry,setPinTry]=useState(''); const [preview,setPreview]=useState(null);
  const cats=data.categories||[]; const txAll=data.transactions||[]; const monthTx=txAll.filter(t=>String(t.date).startsWith(month));
  const expenseCats=cats.filter(c=>c.type==='expense');
- const stats=useMemo(()=>{const budget=expenseCats.reduce((s,c)=>s+Number(c.budget||0),0);const income=monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);const spent=monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);let byCat=expenseCats.map(c=>{const spent=monthTx.filter(t=>t.type==='expense'&&t.categoryId===c.id).reduce((s,t)=>s+Number(t.amount),0);return{...c,spent,diff:Number(c.budget||0)-spent,pct:c.budget?spent/c.budget*100:0,share:spent?0:0}}).sort((a,b)=>b.spent-a.spent);byCat=byCat.map(c=>({...c,share:spent?c.spent/spent*100:0}));return{budget,income,spent,remaining:budget-spent,balance:income-spent,byCat}},[monthTx,cats]);
+ const stats=useMemo(()=>{
+   // Determine budgets for the current month. If no entry exists for a category,
+   // fall back to the category's default budget.
+   const monthBudgets=(data.budgets&&data.budgets[month])||{};
+   const budget=expenseCats.reduce((s,c)=>s+Number((monthBudgets[c.id]??c.budget)||0),0);
+   const income=monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+   const spent=monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+   let byCat=expenseCats.map(c=>{
+     const spentCat=monthTx.filter(t=>t.type==='expense'&&t.categoryId===c.id).reduce((s,t)=>s+Number(t.amount),0);
+     const catBudget=monthBudgets[c.id]??c.budget;
+     const pct=catBudget?spentCat/catBudget*100:0;
+     return {...c, budget:catBudget, spent:spentCat, diff:Number(catBudget||0)-spentCat, pct, share:spent?0:0};
+   }).sort((a,b)=>b.spent-a.spent);
+   byCat=byCat.map(c=>({...c,share:spent?c.spent/spent*100:0}));
+   return{budget,income,spent,remaining:budget-spent,balance:income-spent,byCat};
+ },[monthTx,cats,data.budgets,month]);
  const prev=useMemo(()=>{const p=prevMonth(month);return txAll.filter(t=>String(t.date).startsWith(p)&&t.type==='expense').reduce((m,t)=>({...m,[t.categoryId]:(m[t.categoryId]||0)+Number(t.amount)}),{})},[txAll,month]);
 
  const recurrenceInfo=useMemo(()=>{const list=(data.recurrences||[]).filter(r=>r.active);const todayD=new Date();const cur=todayD.toISOString().slice(0,7);const y=Number(month.slice(0,4)),m=Number(month.slice(5,7))-1;const upcoming=list.map(r=>{const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;const d=new Date(date+'T12:00:00');const diff=Math.ceil((d-todayD)/86400000);const exists=txAll.some(t=>t.date===date&&t.description===r.description&&Number(t.amount)===Number(r.amount)&&t.type===r.type);return{...r,date,diff,exists,categoryName:cats.find(c=>c.id===r.categoryId)?.name||'Accrediti'}}).filter(r=>!r.exists&&r.diff>=0).sort((a,b)=>a.diff-b.diff);const pendingMonth=list.map(r=>{const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;const exists=txAll.some(t=>t.date===date&&t.description===r.description&&Number(t.amount)===Number(r.amount)&&t.type===r.type);return exists?null:{...r,date}}).filter(Boolean);const futureIncome=pendingMonth.filter(r=>r.type==='income').reduce((s,r)=>s+Number(r.amount||0),0);const futureExpense=pendingMonth.filter(r=>r.type==='expense').reduce((s,r)=>s+Number(r.amount||0),0);return{upcoming,pendingMonth,futureIncome,futureExpense,forecastBalance:stats.balance+futureIncome-futureExpense}} ,[data.recurrences,month,txAll,cats,stats.balance]); const due=daysFrom(lastB)>=7;
@@ -59,7 +102,25 @@ function App(){
  const duplicate=t=>saveTx({...t,id:undefined,date:today(),description:t.description+' copia'});
  const saveCat=c=>{setData(d=>({...d,categories:c.id?d.categories.map(x=>x.id===c.id?c:x):[...d.categories,{...c,id:uid()}],settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}}));setModal(null)};
  const delCat=id=>{if(confirm('Eliminare categoria e transazioni collegate?'))setData(d=>({...d,categories:d.categories.filter(c=>c.id!==id),transactions:d.transactions.filter(t=>t.categoryId!==id)}))};
- const copyPrevBudget=()=>{const map={};txAll.filter(t=>String(t.date).startsWith(prevMonth(month))&&t.type==='expense').forEach(t=>map[t.categoryId]=(map[t.categoryId]||0)+Number(t.amount));setData(d=>({...d,categories:d.categories.map(c=>c.type==='expense'?{...c,budget:map[c.id]||c.budget}:c)}));};
+ const copyPrevBudget=()=>{
+   const pm=prevMonth(month);
+   setData(d=>{
+     const prevBud=(d.budgets&&d.budgets[pm])||{};
+     // Build a budgets map for the current month: copy from previous month budgets
+     const currBud={};
+     (d.categories||[]).filter(c=>c.type==='expense').forEach(c=>{
+       currBud[c.id]=prevBud[c.id]??c.budget;
+     });
+     return {
+       ...d,
+       budgets:{
+         ...(d.budgets||{}),
+         [month]:currBud
+       },
+       settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}
+     };
+   });
+ };
  const exportCsv=()=>{const rows=[['Data','Descrizione','Categoria','Tipo','Importo','Note'],...txAll.map(t=>[t.date,t.description,cats.find(c=>c.id===t.categoryId)?.name||'Accrediti',t.type,t.amount,t.notes||''])];download('budgetflow-transazioni.csv',rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n'),'text/csv')};
 // Export a backup of all data to a JSON file. The exported backup contains
 // the current version number (v17) so that future restores can handle schema
@@ -67,7 +128,7 @@ function App(){
 const makeBackup=()=>{
   download(
     `budgetflow-backup-${today()}.json`,
-    JSON.stringify({ app:'BudgetFlow', version:17, createdAt:new Date().toISOString(), data }, null, 2 )
+    JSON.stringify({ app:'BudgetFlow', version:18, createdAt:new Date().toISOString(), data }, null, 2 )
   );
   localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
   setLastB(lastBackup());
@@ -79,7 +140,134 @@ const makeBackup=()=>{
  const confirmImport=()=>{const rows=preview.rows;setData(d=>{const categories=[...d.categories];const existing=new Set(d.transactions.map(t=>`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));const transactions=[];for(const r of rows){if(existing.has(`${r.date}|${norm(r.description)}|${r.amount}|${r.type}`))continue;let categoryId='income';if(r.type==='expense'){let c=categories.find(c=>norm(c.name)===norm(r.categoryName));if(!c){c={id:uid(),name:r.categoryName||'Varie / Altro',budget:0,type:'expense',kind:'variable',color:COLORS[categories.length%COLORS.length]};categories.push(c)}categoryId=c.id}transactions.push({...r,categoryId});}return{...d,categories,transactions:[...transactions,...d.transactions],settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}}});alert('Importazione completata. I duplicati rilevati sono stati saltati.');setPreview(null)};
  const applyRecurrences=()=>{let added=0;setData(d=>{const out=[...d.transactions];for(const r of d.recurrences||[]){if(!r.active)continue;const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;const key=`${date}|${r.description}|${r.amount}|${r.type}`;if(!out.some(t=>`${t.date}|${t.description}|${t.amount}|${t.type}`===key)){out.push({id:uid(),date,description:r.description,categoryId:r.categoryId,type:r.type,amount:Number(r.amount||0),notes:`Ricorrenza automatica · ${r.frequency||'mensile'}`});added++}}return{...d,transactions:out,settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+added}}});alert(added?`Aggiunte ${added} ricorrenze per il mese.`:'Nessuna ricorrenza da aggiungere.');};
  if(locked)return <LockScreen pin={data.settings.pin} pinTry={pinTry} setPinTry={setPinTry} unlock={()=>pinTry===data.settings.pin?setLocked(false):alert('PIN errato')}/>;
- return <div className="app"><header className="top"><div><h1>BudgetFlow</h1><p>{new Date(month+'-01').toLocaleDateString('it-IT',{month:'long',year:'numeric'})}</p></div><input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></header>{due&&<div className="backupBanner"><ShieldCheck size={18}/><span>Non fai un backup da 7 giorni. Vuoi salvare ora su iCloud Drive?</span><button onClick={makeBackup}>Salva backup</button></div>}<main className="content">{tab==='dashboard'&&<Dashboard stats={stats} prev={prev} month={month} cats={cats} setTab={setTab} recurrenceInfo={recurrenceInfo}/>} {tab==='transactions'&&<Transactions tx={monthTx} cats={cats} selected={selected} setSelected={setSelected} query={query} setQuery={setQuery} onAdd={()=>setModal({type:'tx'})} onEdit={t=>setModal({type:'tx',tx:t})} onDelete={delTx} onDup={duplicate} exportCsv={exportCsv} importCsv={prepareCsv}/>} {tab==='categories'&&<Categories cats={cats} saveCat={saveCat} delCat={delCat} edit={c=>setModal({type:'cat',cat:c})} add={()=>setModal({type:'cat'})} copyPrevBudget={copyPrevBudget}/>} {tab==='recurrences'&&<Recurrences data={data} cats={cats} setData={setData} applyRecurrences={applyRecurrences} month={month} txAll={txAll} recurrenceInfo={recurrenceInfo}/>} {tab==='reports'&&<Reports stats={stats} txAll={txAll} cats={cats} month={month} prev={prev}/>} {tab==='backup'&&<Backup lastB={lastB} dirty={data.settings?.dirtyCount||0} makeBackup={makeBackup} restoreBackup={restoreBackup} data={data} setData={setData}/>}</main><button className="fab" onClick={()=>setModal({type:'quick'})}><Plus/></button><nav className="bottom bottom4"><Tab id="dashboard" tab={tab} setTab={setTab} icon={<LayoutDashboard/>} label="Dashboard"/><Tab id="transactions" tab={tab} setTab={setTab} icon={<ListChecks/>} label="Transazioni"/><Tab id="categories" tab={tab} setTab={setTab} icon={<Tags/>} label="Categorie"/><Tab id="recurrences" tab={tab} setTab={setTab} icon={<Repeat/>} label="Ricorr."/><Tab id="backup" tab={tab} setTab={setTab} icon={<FileJson/>} label="Backup"/></nav>{modal?.type==='tx'&&<TxModal tx={modal.tx} cats={cats} save={saveTx} close={()=>setModal(null)}/>} {modal?.type==='quick'&&<QuickAdd cats={cats} last={data.settings?.lastCategoryId} settings={data.settings||{}} setData={setData} txAll={txAll} save={saveTx} close={()=>setModal(null)}/>} {modal?.type==='cat'&&<CatModal cat={modal.cat} save={saveCat} close={()=>setModal(null)}/>} {modal?.type==='backupReminder'&&<Reminder makeBackup={makeBackup} close={()=>setModal(null)}/>} {preview&&<CsvPreview preview={preview} close={()=>setPreview(null)} confirm={confirmImport}/>}</div>
+ return (
+    <div className="app">
+      <header className="top">
+        <div>
+          <h1>BudgetFlow</h1>
+          <p>{new Date(month + '-01').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}</p>
+        </div>
+        <input type="month" value={month} onChange={e => setMonth(e.target.value)} />
+      </header>
+      {due && (
+        <div className="backupBanner">
+          <ShieldCheck size={18} />
+          <span>Non fai un backup da 7 giorni. Vuoi salvare ora su iCloud Drive?</span>
+          <button onClick={makeBackup}>Salva backup</button>
+        </div>
+      )}
+      <main className="content">
+        {tab === 'dashboard' && (
+          <Dashboard
+            stats={stats}
+            prev={prev}
+            month={month}
+            cats={cats}
+            setTab={setTab}
+            recurrenceInfo={recurrenceInfo}
+          />
+        )}
+        {tab === 'transactions' && (
+          <Transactions
+            tx={monthTx}
+            cats={cats}
+            selected={selected}
+            setSelected={setSelected}
+            query={query}
+            setQuery={setQuery}
+            onAdd={() => setModal({ type: 'tx' })}
+            onEdit={t => setModal({ type: 'tx', tx: t })}
+            onDelete={delTx}
+            onDup={duplicate}
+            exportCsv={exportCsv}
+            importCsv={prepareCsv}
+          />
+        )}
+        {tab === 'categories' && (
+          <Categories
+            cats={cats}
+            saveCat={saveCat}
+            delCat={delCat}
+            edit={c => setModal({ type: 'cat', cat: c })}
+            add={() => setModal({ type: 'cat' })}
+            copyPrevBudget={copyPrevBudget}
+            month={month}
+            budgets={data.budgets}
+          />
+        )}
+        {tab === 'recurrences' && (
+          <Recurrences
+            data={data}
+            cats={cats}
+            setData={setData}
+            applyRecurrences={applyRecurrences}
+            month={month}
+            txAll={txAll}
+            recurrenceInfo={recurrenceInfo}
+          />
+        )}
+        {tab === 'reports' && (
+          <Reports
+            stats={stats}
+            txAll={txAll}
+            cats={cats}
+            month={month}
+            prev={prev}
+          />
+        )}
+        {tab === 'backup' && (
+          <Backup
+            lastB={lastB}
+            dirty={data.settings?.dirtyCount || 0}
+            makeBackup={makeBackup}
+            restoreBackup={restoreBackup}
+            data={data}
+            setData={setData}
+          />
+        )}
+      </main>
+      <button className="fab" onClick={() => setModal({ type: 'quick' })}>
+        <Plus />
+      </button>
+      <nav className="bottom bottom4">
+        <Tab id="dashboard" tab={tab} setTab={setTab} icon={<LayoutDashboard />} label="Dashboard" />
+        <Tab id="transactions" tab={tab} setTab={setTab} icon={<ListChecks />} label="Transazioni" />
+        <Tab id="categories" tab={tab} setTab={setTab} icon={<Tags />} label="Categorie" />
+        <Tab id="recurrences" tab={tab} setTab={setTab} icon={<Repeat />} label="Ricorr." />
+        <Tab id="backup" tab={tab} setTab={setTab} icon={<FileJson />} label="Backup" />
+      </nav>
+      {modal?.type === 'tx' && (
+        <TxModal tx={modal.tx} cats={cats} save={saveTx} close={() => setModal(null)} />
+      )}
+      {modal?.type === 'quick' && (
+        <QuickAdd
+          cats={cats}
+          last={data.settings?.lastCategoryId}
+          settings={data.settings || {}}
+          setData={setData}
+          txAll={txAll}
+          save={saveTx}
+          close={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'cat' && (
+        <CatModal
+          cat={modal.cat}
+          month={month}
+          data={data}
+          setData={setData}
+          txAll={txAll}
+          close={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'backupReminder' && (
+        <Reminder makeBackup={makeBackup} close={() => setModal(null)} />
+      )}
+      {preview && (
+        <CsvPreview preview={preview} close={() => setPreview(null)} confirm={confirmImport} />
+      )}
+    </div>
+  );
 }
 function Tab(p){return <button className={p.tab===p.id?'active':''} onClick={()=>p.setTab(p.id)}>{React.cloneElement(p.icon,{size:20})}<span>{p.label}</span></button>}
 function LockScreen({pinTry,setPinTry,unlock}){return <div className="lock"><Lock size={42}/><h1>BudgetFlow</h1><p>Inserisci il PIN locale</p><input value={pinTry} onChange={e=>setPinTry(e.target.value)} type="password" inputMode="numeric" autoFocus/><button onClick={unlock}>Sblocca</button></div>}
@@ -127,8 +315,206 @@ function QuickAdd({cats,last,settings,setData,txAll,save,close}){
   <button className="primary saveFast">Salva spesa in 5 secondi</button>
  </form></div>
 }
-function Categories({cats,saveCat,delCat,edit,add,copyPrevBudget}){return <section className="panel"><div className="sectionTitle"><h2>Budget categorie</h2><div className="actions"><button onClick={copyPrevBudget}>Copia mese scorso</button><button className="primary" onClick={add}><Plus size={16}/>Nuova</button></div></div><div className="catGrid">{cats.map(c=><div className="catCard" key={c.id}><span style={{background:c.color}}/><div><b>{c.name}</b><p>{c.kind==='fixed'?'Fissa':'Variabile'} · {eur(c.budget)}</p></div><button onClick={()=>edit(c)}>Modifica</button><button onClick={()=>delCat(c.id)}><Trash2 size={16}/></button></div>)}</div></section>}
-function CatModal({cat,save,close}){const [f,setF]=useState(cat||{name:'',budget:'',type:'expense',kind:'variable',color:COLORS[0]});return <div className="modal"><form className="sheet" onSubmit={e=>{e.preventDefault();save({...f,budget:parseEuro(f.budget)})}}><button className="x" type="button" onClick={close}><X/></button><h2>Categoria</h2><input placeholder="Nome" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input inputMode="decimal" placeholder="Budget mensile" value={f.budget} onChange={e=>setF({...f,budget:e.target.value})}/><select value={f.kind} onChange={e=>setF({...f,kind:e.target.value})}><option value="variable">Variabile</option><option value="fixed">Fissa</option></select><input type="color" value={f.color} onChange={e=>setF({...f,color:e.target.value})}/><button className="primary">Salva</button></form></div>}
+function Categories({cats,saveCat,delCat,edit,add,copyPrevBudget,month,budgets}){
+  // budgets is the top-level budgets object. Determine budgets for the given month.
+  const monthBudgets=(budgets&&budgets[month])||{};
+  return <section className="panel">
+    <div className="sectionTitle"><h2>Budget categorie</h2>
+      <div className="actions">
+        <button onClick={copyPrevBudget}>Copia mese scorso</button>
+        <button className="primary" onClick={add}><Plus size={16}/>Nuova</button>
+      </div>
+    </div>
+    <div className="catGrid">
+      {cats.map(c=>{
+        // Use monthly budget if available, otherwise fall back to the category's default budget
+        const currentBudget=monthBudgets[c.id]??c.budget;
+        return <div className="catCard" key={c.id}>
+          <span style={{background:c.color}}/>
+          <div><b>{c.name}</b><p>{c.kind==='fixed'?'Fissa':'Variabile'} · {eur(currentBudget)}</p></div>
+          <button onClick={()=>edit(c)}>Modifica</button>
+          <button onClick={()=>delCat(c.id)}><Trash2 size={16}/></button>
+        </div>;
+      })}
+    </div>
+  </section>;
+}
+// Modal for editing or creating a category. When editing an existing category this
+// modal also allows adjusting the budget for the current month and provides
+// quick suggestions based on previous spending. It updates the categories
+// array and the budgets map via setData directly rather than using saveCat.
+function CatModal({cat, close, month, data, setData, txAll}) {
+  // Initialize form state with defaults or the existing category. Use a
+  // string for the budget input so users can type comma/period formats.
+  const [f, setF] = useState(() => {
+    if (cat) {
+      return {
+        name: cat.name,
+        budget: String(cat.budget ?? '').replace('.', ','),
+        kind: cat.kind || 'variable',
+        color: cat.color || COLORS[0],
+      };
+    }
+    return { name: '', budget: '', kind: 'variable', color: COLORS[0] };
+  });
+
+  // Compute budget suggestions: last month spent, average spend of last 3 months,
+  // and last month budget. Only available when editing an existing category.
+  const suggestions = [];
+  if (cat) {
+    try {
+      const lastMonth = prevMonth(month);
+      // Sum spent in the previous month for this category
+      const lastSpent = txAll
+        .filter(
+          (t) =>
+            t.type === 'expense' &&
+            t.categoryId === cat.id &&
+            String(t.date).startsWith(lastMonth)
+        )
+        .reduce((s, t) => s + Number(t.amount), 0);
+      // Determine previous month budget (from budgets or default)
+      const prevBud =
+        (data.budgets?.[lastMonth] && data.budgets[lastMonth][cat.id]) ??
+        cat.budget;
+      // Compute average spend over last 3 months
+      const months = [month, lastMonth, prevMonth(lastMonth)];
+      const spends = months.map((mKey) =>
+        txAll
+          .filter(
+            (t) =>
+              t.type === 'expense' &&
+              t.categoryId === cat.id &&
+              String(t.date).startsWith(mKey)
+          )
+          .reduce((s, t) => s + Number(t.amount), 0)
+      );
+      const avgSpent = spends.reduce((a, b) => a + b, 0) / spends.length;
+      if (lastSpent > 0) {
+        suggestions.push({ label: 'Spesa ultimo mese', value: lastSpent });
+      }
+      if (avgSpent > 0) {
+        suggestions.push({ label: 'Media ultimi 3 mesi', value: avgSpent });
+      }
+      if (prevBud > 0) {
+        suggestions.push({ label: 'Budget mese scorso', value: prevBud });
+      }
+    } catch (e) {
+      // Ignore any errors in computing suggestions
+    }
+  }
+
+  // Helper to apply a suggestion to the budget input. Converts number to
+  // Italian string with comma as decimal separator.
+  const applySuggestion = (val) => {
+    const num = Number(val) || 0;
+    const str = num.toFixed(2).replace('.', ',');
+    setF((prev) => ({ ...prev, budget: str }));
+  };
+
+  // Save handler: updates categories and budgets. When editing, update the
+  // existing category and set the monthly budget; when creating, create a new
+  // category with a new id and assign the monthly budget. Also update the
+  // default budget on the category for future months.
+  const onSave = (e) => {
+    e.preventDefault();
+    // Validate name and budget
+    if (!f.name.trim()) {
+      alert('Inserisci un nome');
+      return;
+    }
+    const parsedBudget = parseEuro(f.budget);
+    if (!Number.isFinite(parsedBudget) || parsedBudget < 0) {
+      alert('Inserisci un importo valido');
+      return;
+    }
+    if (cat) {
+      // Editing existing category
+      setData((d) => {
+        const categories = d.categories.map((x) =>
+          x.id === cat.id ? { ...x, name: f.name, color: f.color, kind: f.kind, budget: parsedBudget } : x
+        );
+        const monthBud = { ...(d.budgets?.[month] || {}) };
+        monthBud[cat.id] = parsedBudget;
+        return {
+          ...d,
+          categories,
+          budgets: { ...d.budgets, [month]: monthBud },
+          settings: { ...d.settings, dirtyCount: (d.settings?.dirtyCount || 0) + 1 },
+        };
+      });
+    } else {
+      // Creating new category
+      const newId = uid();
+      setData((d) => {
+        const newCat = {
+          id: newId,
+          name: f.name,
+          budget: parsedBudget,
+          type: 'expense',
+          kind: f.kind,
+          color: f.color,
+        };
+        const monthBud = { ...(d.budgets?.[month] || {}) };
+        monthBud[newId] = parsedBudget;
+        return {
+          ...d,
+          categories: [...d.categories, newCat],
+          budgets: { ...d.budgets, [month]: monthBud },
+          settings: { ...d.settings, dirtyCount: (d.settings?.dirtyCount || 0) + 1 },
+        };
+      });
+    }
+    close();
+  };
+  return (
+    <div className="modal">
+      <form className="sheet" onSubmit={onSave}>
+        <button className="x" type="button" onClick={close}>
+          <X />
+        </button>
+        <h2>{cat ? 'Modifica categoria' : 'Nuova categoria'}</h2>
+        <input
+          placeholder="Nome"
+          value={f.name}
+          onChange={(e) => setF({ ...f, name: e.target.value })}
+        />
+        <input
+          inputMode="decimal"
+          placeholder="Budget mensile"
+          value={f.budget}
+          onChange={(e) => setF({ ...f, budget: e.target.value })}
+        />
+        {suggestions.length > 0 && (
+          <div className="budgetSuggestions">
+            {suggestions.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => applySuggestion(s.value)}
+              >
+                {s.label}: {eur(s.value)}
+              </button>
+            ))}
+          </div>
+        )}
+        <select
+          value={f.kind}
+          onChange={(e) => setF({ ...f, kind: e.target.value })}
+        >
+          <option value="variable">Variabile</option>
+          <option value="fixed">Fissa</option>
+        </select>
+        <input
+          type="color"
+          value={f.color}
+          onChange={(e) => setF({ ...f, color: e.target.value })}
+        />
+        <button className="primary">Salva</button>
+      </form>
+    </div>
+  );
+}
 function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceInfo}){
   const templates=[
   {description:'Stipendio',type:'income',categoryId:'income',amount:1950,day:1,remindDays:2},
