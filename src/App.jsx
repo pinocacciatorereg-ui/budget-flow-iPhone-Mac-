@@ -1263,6 +1263,5 @@ function CsvImportModal({file,cats,data,setData,setImporter}) {
 }
 function CsvPreview({preview,close,confirm}){return <div className="modal"><div className="sheet large"><button className="x" onClick={close}><X/></button><h2>Anteprima import CSV</h2><p>{preview.rows.length} righe rilevate · {preview.duplicates} possibili duplicati verranno saltati.</p><div className="preview">{preview.rows.slice(0,20).map(r=><div key={r.id}><span>{r.date}</span><b>{r.description}</b><span>{r.categoryName}</span><strong>{eur(r.amount)}</strong></div>)}</div><button className="primary" onClick={confirm}>Importa senza duplicati</button></div></div>}
 
-createRoot(document.getElementById('root')).render(<App/>);
-
+// Export the main App component as the default export.
 export default App;
