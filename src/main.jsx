@@ -1,3 +1,30 @@
+
+// Rules for inferring a category from a transaction description when the CSV
+// does not explicitly provide one. Each rule lists keywords and the
+// corresponding category name to propose.
+const importCategoryRules=[
+  {name:'Abbonamenti', keys:['netflix','spotify','apple','icloud','disney','prime','dazn','youtube','music']},
+  {name:'Spesa', keys:['esselunga','conad','coop','lidl','aldi','eurospin','carrefour','iper','pam','supermercato']},
+  {name:'Asporto / Delivery', keys:['glovo','deliveroo','just eat','pizza','mc donald','burger','pizzeria','mcdonald']},
+  {name:'Bar / Colazioni / Snack', keys:['bar','caffe','caffè','cornetto','colazione','bakery','pasticceria','snack','cafe']},
+  {name:'Trasporti', keys:['benzina','eni','q8','tamoil','ip','treno','trenitalia','italo','metro','bus','uber','taxi']},
+  {name:'Salute', keys:['farmacia','medico','dentista','sanitaria','analisi','ospedale']},
+  {name:'Shopping / Personale', keys:['amazon','zara','h&m','decathlon','ikea','negozio']},
+  {name:'Bollette', keys:['enel','energia','gas','hera','a2a','luce','acqua','bolletta']},
+  {name:'Rate / Finanziamenti', keys:['mutuo','rata','finanziamento','prestito','leasing']},
+  {name:'Accrediti / Entrata', keys:['stipendio','salary','payroll','accredito','bonifico']}
+];
+
+// Given a description, attempt to infer the category name using predefined rules.
+function guessCategoryName(desc){
+  const n=norm(desc);
+  for(const rule of importCategoryRules){
+    if(rule.keys.some(k=>n.includes(norm(k)))){
+      return rule.name;
+    }
+  }
+  return 'Varie / Altro';
+}
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart3, CalendarClock, CheckCircle2, ChevronRight, Copy, Download, FileJson, LayoutDashboard, ListChecks, Lock, Plus, Repeat, RotateCcw, Search, ShieldCheck, Tags, Trash2, Upload, Wallet, X } from 'lucide-react';
@@ -11,8 +38,66 @@ const eur=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).fo
 const norm=v=>String(v??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const daysInMonth=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0).getDate();
 const dayOfMonth=()=>new Date().getDate();
-const parseEuro=v=>{let s=String(v??'').replace(/[€\s]/g,'').trim(); if(!s)return 0; if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.'); else if(s.includes(','))s=s.replace(',','.'); const n=Number(s); return Number.isFinite(n)?n:0};
-const normDate=v=>{const s=String(v??'').trim(); if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s; const m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/); if(m){const y=m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`} const d=new Date(s); return Number.isNaN(d)?today():d.toISOString().slice(0,10)};
+// Parse a Euro amount from a variety of formats. Handles comma or dot as decimal
+// separators, optional euro symbol and spaces, negative numbers indicated
+// by a minus sign or parentheses. Returns 0 for invalid input.
+const parseEuro=v=>{
+  let s=String(v??'').replace(/[€\s]/g,'').trim();
+  if(!s)return 0;
+  // Handle numbers enclosed in parentheses as negative (e.g. (12,50) => -12.50)
+  let neg=false;
+  if(s.startsWith('(') && s.endsWith(')')){
+    s=s.slice(1,-1);
+    neg=true;
+  }
+  // Replace thousand separators and unify decimal separator
+  if(s.includes(',') && s.includes('.')){
+    // assume period is thousands and comma is decimal
+    s=s.replace(/\./g,'').replace(',','.');
+  } else if(s.includes(',')){
+    s=s.replace(',','.');
+  }
+  const n=Number(s);
+  return Number.isFinite(n)?(neg?-n:n):0;
+};
+// Italian month abbreviations map for parsing dates like "5 mag 2026" or "05 maggio 2026".
+const MONTHS_IT={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};
+// Normalize various date formats into yyyy-mm-dd. Supports ISO, dd/mm/yyyy, dd-mm-yyyy,
+// and Italian month names (both abbreviated and full) such as "5 mag 2026".
+const normDate=v=>{
+  const s=String(v??'').trim();
+  // ISO format yyyy-mm-dd
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  // Formats dd/mm/yyyy or dd-mm-yyyy
+  let m=s.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})$/);
+  if(m){
+    const y=m[3].length===2?'20'+m[3]:m[3];
+    return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  }
+  // Format with month name: e.g. "5 mag 2026" or "05 maggio 2026"
+  m=s.match(/^(\d{1,2})\s*([A-Za-zÀ-ÿ]{3,})\s*(\d{2,4})$/);
+  if(m){
+    const day=m[1].padStart(2,'0');
+    // Use the first three letters of the month, normalized (without accents)
+    let monthKeyStr=m[2].slice(0,3);
+    monthKeyStr=norm(monthKeyStr).slice(0,3);
+    let month=MONTHS_IT[monthKeyStr];
+    if(!month){
+      try{
+        // Fallback: let Date.parse handle some month names
+        const dtmp=new Date(`${m[2]} 1`);
+        if(!Number.isNaN(dtmp)){
+          const mm=dtmp.getMonth()+1;
+          month=String(mm).padStart(2,'0');
+        }
+      }catch{}
+    }
+    const year=m[3].length===2?'20'+m[3]:m[3];
+    return `${year}-${month||'01'}-${day}`;
+  }
+  const d=new Date(s);
+  return Number.isNaN(d)?today():d.toISOString().slice(0,10);
+};
 const prevMonth=m=>{const d=new Date(Number(m.slice(0,4)),Number(m.slice(5,7))-2,1); return monthKey(d)};
 
 function parseCsv(text){const rows=[];let row=[],cur='',q=false;const first=text.split(/\r?\n/)[0]||'';const sep=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';for(let i=0;i<text.length;i++){const ch=text[i],nx=text[i+1];if(ch==='"'&&q&&nx==='"'){cur+='"';i++;continue}if(ch==='"'){q=!q;continue}if(ch===sep&&!q){row.push(cur);cur='';continue}if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&nx==='\n')i++;row.push(cur);cur='';if(row.some(x=>String(x).trim()))rows.push(row.map(x=>String(x).trim()));row=[];continue}cur+=ch}row.push(cur);if(row.some(x=>String(x).trim()))rows.push(row.map(x=>String(x).trim()));return rows}
@@ -27,7 +112,8 @@ const demoTx=[{id:uid(),date:today(),description:'Stipendio',categoryId:'income'
 // `budget` property.  When editing budgets for a specific month, entries in
 // `budgets[month][categoryId]` override the default.
 const defaultData={
-  version:18,
+  // Current schema version. Increment this when breaking changes are introduced.
+  version:20,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -44,7 +130,12 @@ const defaultData={
     quickFavorites:defaultCats.slice(0,6).map(c=>c.id)
   },
   // monthly budgets keyed by YYYY-MM. Each entry contains categoryId => budget.
-  budgets:{}
+  budgets:{},
+  // Saved CSV column mappings keyed by user-specified names. Each mapping
+  // defines column indices for date, description, category, type, amount and notes.
+  mappings:{},
+  // Stores the ID of the most recent import batch for undoing imports.
+  lastImportBatchId:null
 };
 
 function useData(){
@@ -56,7 +147,12 @@ function useData(){
       return {
         ...defaultData,
         ...saved,
-        budgets:{...defaultData.budgets, ...(saved.budgets || {})}
+        // merge budgets so that saved budgets override defaults
+        budgets:{...defaultData.budgets, ...(saved.budgets || {})},
+        // merge saved mappings overriding defaults
+        mappings:{...defaultData.mappings, ...(saved.mappings || {})},
+        // restore last import batch ID if present
+        lastImportBatchId: saved.lastImportBatchId ?? defaultData.lastImportBatchId
       };
     } catch {
       return defaultData;
@@ -64,7 +160,9 @@ function useData(){
   });
   // Save current data back to localStorage on every change, carrying the latest version number.
   useEffect(() => {
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 18 }));
+    // Persist data with the current version number. Spread only the data object
+    // and override version to help with future migrations.
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 20 }));
   }, [data]);
   return [data, setData];
 }
@@ -73,7 +171,18 @@ function daysFrom(iso){return iso?Math.floor((Date.now()-new Date(iso).getTime()
 function download(name,content,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
 function App(){
- const [data,setData]=useData(); const [tab,setTab]=useState('dashboard'); const [month,setMonth]=useState(monthKey()); const [modal,setModal]=useState(null); const [query,setQuery]=useState(''); const [selected,setSelected]=useState([]); const [lastB,setLastB]=useState(lastBackup()); const [locked,setLocked]=useState(Boolean(data.settings?.pin)); const [pinTry,setPinTry]=useState(''); const [preview,setPreview]=useState(null);
+ const [data,setData]=useData();
+ const [tab,setTab]=useState('dashboard');
+ const [month,setMonth]=useState(monthKey());
+ const [modal,setModal]=useState(null);
+ const [query,setQuery]=useState('');
+ const [selected,setSelected]=useState([]);
+ const [lastB,setLastB]=useState(lastBackup());
+ const [locked,setLocked]=useState(Boolean(data.settings?.pin));
+ const [pinTry,setPinTry]=useState('');
+ // importer state holds information about the current CSV file being imported. When not null,
+ // it triggers the CsvImportModal component.
+ const [importer,setImporter]=useState(null);
  const cats=data.categories||[]; const txAll=data.transactions||[]; const monthTx=txAll.filter(t=>String(t.date).startsWith(month));
  const expenseCats=cats.filter(c=>c.type==='expense');
  const stats=useMemo(()=>{
@@ -121,6 +230,21 @@ function App(){
      };
    });
  };
+
+  // Undo the most recent CSV import by removing all transactions with the stored batch ID.
+  const undoLastImport = () => {
+    const batchId = data.lastImportBatchId;
+    if(!batchId) return;
+    if(!confirm('Annullare l\'ultimo import?')) return;
+    setData(d => {
+      return {
+        ...d,
+        transactions: d.transactions.filter(t => t.importBatchId !== batchId),
+        lastImportBatchId: null,
+        settings:{...d.settings, dirtyCount:(d.settings?.dirtyCount||0)+1}
+      };
+    });
+  };
  const exportCsv=()=>{const rows=[['Data','Descrizione','Categoria','Tipo','Importo','Note'],...txAll.map(t=>[t.date,t.description,cats.find(c=>c.id===t.categoryId)?.name||'Accrediti',t.type,t.amount,t.notes||''])];download('budgetflow-transazioni.csv',rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n'),'text/csv')};
 // Export a backup of all data to a JSON file. The exported backup contains
 // the current version number (v17) so that future restores can handle schema
@@ -128,7 +252,7 @@ function App(){
 const makeBackup=()=>{
   download(
     `budgetflow-backup-${today()}.json`,
-    JSON.stringify({ app:'BudgetFlow', version:18, createdAt:new Date().toISOString(), data }, null, 2 )
+    JSON.stringify({ app:'BudgetFlow', version:20, createdAt:new Date().toISOString(), data }, null, 2 )
   );
   localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
   setLastB(lastBackup());
@@ -136,8 +260,12 @@ const makeBackup=()=>{
   setModal(null);
 };
  const restoreBackup=async f=>{if(!f)return;const obj=JSON.parse(await f.text());if(!obj?.data?.transactions||!obj?.data?.categories)return alert('Backup non valido');if(confirm(`Ripristinare backup del ${new Date(obj.createdAt||Date.now()).toLocaleString('it-IT')}?`)){setData({...defaultData,...obj.data});setModal(null)}};
- const prepareCsv=async f=>{if(!f)return;const rows=parseCsv(await f.text());const header=(rows[0]||[]).map(norm);const idx=names=>names.map(norm).map(n=>header.indexOf(n)).find(i=>i>=0);const amountI=idx(['importo','amount','valore','spesa']);if(amountI===undefined)return alert('Serve una colonna Importo');const dateI=idx(['data','date']),descI=idx(['descrizione','description','causale','nome']),catI=idx(['categoria','category']),typeI=idx(['tipo','type']),notesI=idx(['note','notes']);const mapped=rows.slice(1).map((r,i)=>{const rawType=norm(typeI!==undefined?r[typeI]:'');const amount=parseEuro(r[amountI]);const catName=catI!==undefined?r[catI]:'Varie / Altro';const type=rawType.includes('entr')||rawType==='income'||norm(catName).includes('accredit')?'income':'expense';return{id:uid(),date:normDate(dateI!==undefined?r[dateI]:today()),description:(descI!==undefined?r[descI]:'Import CSV')||'Import CSV',categoryName:catName,type,amount:Math.abs(amount),notes:notesI!==undefined?r[notesI]:'',sourceRow:i+2}}).filter(x=>x.amount);const existing=new Set(txAll.map(t=>`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));setPreview({rows:mapped,duplicates:mapped.filter(t=>existing.has(`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`)).length})};
- const confirmImport=()=>{const rows=preview.rows;setData(d=>{const categories=[...d.categories];const existing=new Set(d.transactions.map(t=>`${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));const transactions=[];for(const r of rows){if(existing.has(`${r.date}|${norm(r.description)}|${r.amount}|${r.type}`))continue;let categoryId='income';if(r.type==='expense'){let c=categories.find(c=>norm(c.name)===norm(r.categoryName));if(!c){c={id:uid(),name:r.categoryName||'Varie / Altro',budget:0,type:'expense',kind:'variable',color:COLORS[categories.length%COLORS.length]};categories.push(c)}categoryId=c.id}transactions.push({...r,categoryId});}return{...d,categories,transactions:[...transactions,...d.transactions],settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+1}}});alert('Importazione completata. I duplicati rilevati sono stati saltati.');setPreview(null)};
+ // Deprecated CSV import function retained for backward compatibility. In v20 use CsvImportModal.
+ const prepareCsv = async (f) => {
+   // This function is intentionally left blank. The CSV import is handled by CsvImportModal.
+ };
+ // Deprecated confirm import function retained for backward compatibility. In v20 imports are confirmed in CsvImportModal.
+ const confirmImport = () => {};
  const applyRecurrences=()=>{let added=0;setData(d=>{const out=[...d.transactions];for(const r of d.recurrences||[]){if(!r.active)continue;const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;const key=`${date}|${r.description}|${r.amount}|${r.type}`;if(!out.some(t=>`${t.date}|${t.description}|${t.amount}|${t.type}`===key)){out.push({id:uid(),date,description:r.description,categoryId:r.categoryId,type:r.type,amount:Number(r.amount||0),notes:`Ricorrenza automatica · ${r.frequency||'mensile'}`});added++}}return{...d,transactions:out,settings:{...d.settings,dirtyCount:(d.settings?.dirtyCount||0)+added}}});alert(added?`Aggiunte ${added} ricorrenze per il mese.`:'Nessuna ricorrenza da aggiungere.');};
  if(locked)return <LockScreen pin={data.settings.pin} pinTry={pinTry} setPinTry={setPinTry} unlock={()=>pinTry===data.settings.pin?setLocked(false):alert('PIN errato')}/>;
  return (
@@ -180,7 +308,9 @@ const makeBackup=()=>{
             onDelete={delTx}
             onDup={duplicate}
             exportCsv={exportCsv}
-            importCsv={prepareCsv}
+            importCsv={f => setImporter({ file: f })}
+            undoImport={undoLastImport}
+            lastImportBatchId={data.lastImportBatchId}
           />
         )}
         {tab === 'categories' && (
@@ -263,8 +393,8 @@ const makeBackup=()=>{
       {modal?.type === 'backupReminder' && (
         <Reminder makeBackup={makeBackup} close={() => setModal(null)} />
       )}
-      {preview && (
-        <CsvPreview preview={preview} close={() => setPreview(null)} confirm={confirmImport} />
+      {importer && (
+        <CsvImportModal file={importer.file} cats={cats} data={data} setData={setData} setImporter={setImporter} />
       )}
     </div>
   );
@@ -275,7 +405,6 @@ function Card({title,value,sub,cls}){return <div className={'stat '+cls}><div cl
 function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){const positive=stats.byCat.filter(c=>c.spent>0);const circumference=2*Math.PI*72;let offset=0;return <><section className="mobileHero"><div><span>Saldo del mese</span><h2>{eur(stats.balance)}</h2><p>{stats.balance>=0?'Sei in positivo':'Saldo negativo'} · Budget rimasto {eur(stats.remaining)}</p></div><button onClick={()=>setTab('transactions')}>Transazioni</button></section><section className="stats"><Card cls="blue" title="Uscite" value={eur(stats.spent)} sub={`${Math.round(stats.budget?stats.spent/stats.budget*100:0)}% del budget`}/><Card cls="green" title="Budget" value={eur(stats.budget)} sub="Somma categorie"/><Card cls="yellow" title="Rimanente" value={eur(stats.remaining)} sub="Disponibile"/><Card cls="purple" title="Accrediti" value={eur(stats.income)} sub="Entrate del mese"/></section><section className="grid dashGrid"><div className="panel mobileCompact"><h2>Distribuzione spese</h2><div className="donutWrap"><svg viewBox="0 0 180 180" className="donut">{positive.map(c=>{const dash=c.share/100*circumference;const el=<circle key={c.id} cx="90" cy="90" r="72" fill="none" stroke={c.color} strokeWidth="22" strokeDasharray={`${dash} ${circumference-dash}`} strokeDashoffset={-offset} strokeLinecap="butt"/>;offset+=dash;return el})}<circle cx="90" cy="90" r="50" fill="var(--card)"/><text x="90" y="86" textAnchor="middle" className="donutTotal">{eur(stats.spent)}</text><text x="90" y="105" textAnchor="middle" className="donutSub">spese</text></svg></div><div className="legend compact">{positive.slice(0,8).map(c=><div key={c.id}><span style={{background:c.color}}/><b>{c.name}</b><strong>{eur(c.spent)}</strong><em>{c.share.toFixed(1)}%</em></div>)}</div></div><div className="panel mobileCompact"><h2>Spese per categoria</h2><CategoryBars items={positive}/></div></section><div className="recMini"><div><span>Previsione saldo con ricorrenze</span><b>{eur(recurrenceInfo?.forecastBalance||stats.balance)}</b><p>{recurrenceInfo?.pendingMonth?.length||0} ricorrenze ancora da applicare nel mese</p></div><button onClick={()=>setTab('recurrences')}>Gestisci</button></div><section className="panel mobileCompact"><div className="sectionTitle"><h2>Riepilogo intelligente</h2><button onClick={()=>setTab('reports')}>Report <ChevronRight size={16}/></button></div><div className="insights"><Insight text={`Ti restano ${eur(stats.remaining)}. Puoi spendere circa ${eur(Math.max(0,stats.remaining)/(daysInMonth(monthKey())-dayOfMonth()+1))} al giorno fino a fine mese.`}/>{stats.byCat.filter(c=>c.spent>prev[c.id]&&prev[c.id]).slice(0,2).map(c=><Insight key={c.id} text={`Hai speso ${eur(c.spent-prev[c.id])} in più in ${c.name} rispetto al mese scorso.`}/>)}</div></section><section className="panel mobileDetail"><h2>Budget vs speso</h2><div className="budgetList">{stats.byCat.map(c=><div key={c.id} className="budgetRow"><div><span style={{background:c.color}}/>{c.name}</div><strong>{eur(c.spent)} / {eur(c.budget)}</strong><div className="track"><i style={{width:`${Math.min(100,c.pct)}%`,background:c.pct>=100?'#ef4444':c.pct>=80?'#facc15':'#22c55e'}}/></div></div>)}</div></section></>}
 function CategoryBars({items}){const max=Math.max(1,...items.map(i=>i.spent));return <div className="mobileBars">{items.map(i=><div key={i.id} className="mbar"><div className="mbarTop"><span style={{background:i.color}}/>{i.name}<b>{eur(i.spent)}</b></div><div className="track"><i style={{width:`${i.spent/max*100}%`,background:i.color}}/></div></div>)}</div>}
 function Insight({text}){return <div className="insight"><CheckCircle2 size={18}/>{text}</div>}
-function Transactions({tx,cats,selected,setSelected,query,setQuery,onAdd,onEdit,onDelete,onDup,exportCsv,importCsv}){const filtered=tx.filter(t=>norm(t.description).includes(norm(query))||norm(cats.find(c=>c.id===t.categoryId)?.name).includes(norm(query)));const file=useRef();return <section className="panel trans nativePanel"><div className="sectionTitle nativeTitle"><div><h2>Transazioni</h2><p>Scorri una card a sinistra per eliminare o a destra per modificare.</p></div><div className="actions nativeActions"><button onClick={exportCsv}><Download size={16}/>CSV</button><button onClick={()=>file.current.click()}><Upload size={16}/>Importa</button><input hidden ref={file} type="file" accept=".csv,text/csv" onChange={e=>importCsv(e.target.files[0])}/><button className="primary" onClick={onAdd}><Plus size={16}/>Nuova</button></div></div><div className="toolbar"><div className="search"><Search size={18}/><input placeholder="Cerca spesa, categoria, nota" value={query} onChange={e=>setQuery(e.target.value)}/></div>{selected.length>0&&<button className="danger" onClick={()=>onDelete(selected)}><Trash2 size={16}/>Elimina {selected.length}</button>}</div>{filtered.length===0?<div className="empty">Nessuna transazione. Tocca + per aggiungere una spesa in pochi secondi.</div>:<div className="txCards nativeList">{filtered.map(t=>{const c=cats.find(c=>c.id===t.categoryId);return <SwipeTx key={t.id} t={t} c={c} selected={selected} setSelected={setSelected} onEdit={onEdit} onDelete={onDelete} onDup={onDup}/>} )}</div>}</section>}
 function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){const [x,setX]=useState(0);const sx=useRef(0);const dx=useRef(0);const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-96,Math.min(96,v)))};const end=()=>{if(dx.current<-74){setX(-96);setTimeout(()=>{setX(0);onDelete([t.id])},120)}else if(dx.current>74){setX(96);setTimeout(()=>{setX(0);onEdit(t)},120)}else setX(0)};return <div className="swipeShell"><div className="swipeBg left">Modifica</div><div className="swipeBg right">Elimina</div><div className="txCard nativeCard" style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}><input aria-label="Seleziona transazione" type="checkbox" checked={selected.includes(t.id)} onChange={e=>setSelected(s=>e.target.checked?[...s,t.id]:s.filter(x=>x!==t.id))}/><div className="dot" style={{background:t.type==='income'?'#a855f7':c?.color}}/><div className="txMain"><b>{t.description}</b><span>{new Date(t.date).toLocaleDateString('it-IT')} · {t.type==='income'?'Accrediti':c?.name}</span></div><strong className={t.type}>{t.type==='income'?'+':'-'}{eur(t.amount)}</strong><button className="desktopAction" onClick={()=>onDup(t)}><Copy size={16}/></button><button className="desktopAction" onClick={()=>onEdit(t)}>Modifica</button></div></div>}
 function TxModal({tx,cats,save,close}){const [f,setF]=useState(tx||{date:today(),description:'',categoryId:cats[0]?.id,type:'expense',amount:'',notes:''});return <div className="modal"><form className="sheet" onSubmit={e=>{e.preventDefault();save({...f,amount:parseEuro(f.amount)})}}><button className="x" type="button" onClick={close}><X/></button><h2>{tx?'Modifica':'Nuova'} transazione</h2><input type="date" value={f.date} onChange={e=>setF({...f,date:e.target.value})}/><input placeholder="Descrizione" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><input inputMode="decimal" placeholder="Importo" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/><select value={f.type} onChange={e=>setF({...f,type:e.target.value,categoryId:e.target.value==='income'?'income':cats[0]?.id})}><option value="expense">Uscita</option><option value="income">Entrata</option></select>{f.type==='expense'&&<select value={f.categoryId} onChange={e=>setF({...f,categoryId:e.target.value})}>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}<textarea placeholder="Note" value={f.notes||''} onChange={e=>setF({...f,notes:e.target.value})}/><button className="primary">Salva</button></form></div>}
 function QuickAdd({cats,last,settings,setData,txAll,save,close}){
@@ -314,6 +443,51 @@ function QuickAdd({cats,last,settings,setData,txAll,save,close}){
   <textarea className="quickNote" placeholder="Nota opzionale" value={note} onChange={e=>setNote(e.target.value)} />
   <button className="primary saveFast">Salva spesa in 5 secondi</button>
  </form></div>
+}
+
+/*
+ * Enhanced Transactions component for v20.
+ * Adds support for undoing the last CSV import and integrates with the new CSV import modal.
+ * Accepts additional props: undoImport and lastImportBatchId.
+ */
+function Transactions({tx,cats,selected,setSelected,query,setQuery,onAdd,onEdit,onDelete,onDup,exportCsv,importCsv,undoImport,lastImportBatchId}){
+  // Filter transactions based on search query matching description or category name
+  const filtered=tx.filter(t=>norm(t.description).includes(norm(query))||norm(cats.find(c=>c.id===t.categoryId)?.name).includes(norm(query)));
+  const file=useRef();
+  return (
+    <section className="panel trans nativePanel">
+      <div className="sectionTitle nativeTitle">
+        <div>
+          <h2>Transazioni</h2>
+          <p>Scorri una card a sinistra per eliminare o a destra per modificare.</p>
+        </div>
+        <div className="actions nativeActions">
+          <button onClick={exportCsv}><Download size={16}/>CSV</button>
+          <button onClick={()=>file.current.click()}><Upload size={16}/>Importa</button>
+          <input hidden ref={file} type="file" accept=".csv,text/csv" onChange={e=>importCsv(e.target.files[0])}/>
+          <button className="primary" onClick={onAdd}><Plus size={16}/>Nuova</button>
+        </div>
+      </div>
+      <div className="toolbar">
+        <div className="search">
+          <Search size={18}/>
+          <input placeholder="Cerca spesa, categoria, nota" value={query} onChange={e=>setQuery(e.target.value)}/>
+        </div>
+        {lastImportBatchId && <button className="warning" onClick={undoImport}><RotateCcw size={16}/>Annulla import</button>}
+        {selected.length>0 && <button className="danger" onClick={()=>onDelete(selected)}><Trash2 size={16}/>Elimina {selected.length}</button>}
+      </div>
+      {filtered.length===0 ? (
+        <div className="empty">Nessuna transazione. Tocca + per aggiungere una spesa in pochi secondi.</div>
+      ) : (
+        <div className="txCards nativeList">
+          {filtered.map(t => {
+            const c=cats.find(c=>c.id===t.categoryId);
+            return <SwipeTx key={t.id} t={t} c={c} selected={selected} setSelected={setSelected} onEdit={onEdit} onDelete={onDelete} onDup={onDup}/>;
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
 function Categories({cats,saveCat,delCat,edit,add,copyPrevBudget,month,budgets}){
   // budgets is the top-level budgets object. Determine budgets for the given month.
@@ -653,6 +827,214 @@ function Reports({stats,txAll,cats,month,prev}){const last6=[...Array(6)].map((_
 function Backup({lastB,dirty,makeBackup,restoreBackup,data,setData}){const file=useRef();return <section className="panel"><h2>Backup & sicurezza</h2><div className="backupBox"><p><b>Ultimo backup:</b> {lastB?new Date(lastB).toLocaleString('it-IT'):'mai'}</p><p><b>Modifiche non salvate in backup:</b> {dirty}</p><button className="primary" onClick={makeBackup}><Download size={16}/>Esporta backup completo</button><button onClick={()=>file.current.click()}><RotateCcw size={16}/>Ripristina backup</button><input hidden type="file" accept=".json" ref={file} onChange={e=>restoreBackup(e.target.files[0])}/></div><PinSettings data={data} setData={setData}/></section>}
 function PinSettings({data,setData}){const [pin,setPin]=useState('');return <div className="backupBox"><h3>PIN locale</h3><p>Protegge l’apertura su questo dispositivo. Non è sincronizzato.</p><input placeholder="Nuovo PIN" type="password" inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)}/><button onClick={()=>{setData(d=>({...d,settings:{...d.settings,pin}}));alert(pin?'PIN impostato':'PIN rimosso')}}>{pin?'Imposta PIN':'Rimuovi PIN'}</button></div>}
 function Reminder({makeBackup,close}){return <div className="modal"><div className="sheet"><h2>Backup consigliato</h2><p>Non fai un backup da 7 giorni. Vuoi salvare ora su iCloud Drive?</p><button className="primary" onClick={makeBackup}>Salva backup</button><button onClick={close}>Più tardi</button></div></div>}
+
+/*
+ * CsvImportModal component provides an interactive interface for importing CSV files.
+ * It allows the user to map CSV columns to fields, preview rows, detect duplicates,
+ * infer categories using rules when not provided, save/load mappings, and
+ * confirm or cancel the import. Duplicates can be optionally imported.
+ */
+function CsvImportModal({file,cats,data,setData,setImporter}) {
+  const [rows,setRows] = useState([]);
+  const [header,setHeader] = useState([]);
+  const [mapping,setMapping] = useState({date:-1,description:-1,category:-1,type:-1,amount:-1,notes:-1});
+  const [previewRows,setPreviewRows] = useState([]);
+  const [importDuplicates,setImportDuplicates] = useState(false);
+  const [mappingName,setMappingName] = useState('');
+  // Parse the CSV file on mount and guess initial mapping
+  useEffect(() => {
+    (async () => {
+      const text = await file.text();
+      const raw = parseCsv(text);
+      if(!raw || raw.length < 1) {
+        setRows([]);
+        setHeader([]);
+        return;
+      }
+      const hdr = raw[0];
+      setHeader(hdr);
+      setRows(raw.slice(1));
+      // Guess mapping by matching normalized header names against typical labels
+      const hdrNorm = hdr.map(h => norm(h));
+      const guessField = (names) => {
+        for(const n of names) {
+          const idx = hdrNorm.indexOf(norm(n));
+          if(idx >= 0) return idx;
+        }
+        return -1;
+      };
+      const m = {
+        date: guessField(['data','date','operation date','transaction date']),
+        description: guessField(['descrizione','description','merchant','causale','nome']),
+        amount: guessField(['importo','amount','valore','spesa']),
+        category: guessField(['categoria','category']),
+        type: guessField(['tipo','type']),
+        notes: guessField(['note','notes'])
+      };
+      setMapping(m);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
+  // Recompute preview rows whenever the CSV rows or mapping change
+  useEffect(() => {
+    if(!rows.length) {
+      setPreviewRows([]);
+      return;
+    }
+    const existing = new Set(data.transactions.map(t => `${t.date}|${norm(t.description)}|${t.amount}|${t.type}`));
+    const out = [];
+    rows.forEach((r,i) => {
+      // Extract fields based on mapping or defaults
+      let date = '', description = '', amount = 0, typ = 'expense', catName = '', notes = '';
+      if(mapping.date >= 0) {
+        date = normDate(r[mapping.date]);
+      } else {
+        date = today();
+      }
+      if(mapping.description >= 0) {
+        description = r[mapping.description] || 'Import CSV';
+      } else {
+        description = 'Import CSV';
+      }
+      if(mapping.amount >= 0) {
+        amount = parseEuro(r[mapping.amount]);
+      } else {
+        amount = 0;
+      }
+      if(mapping.type >= 0) {
+        const rawType = norm(r[mapping.type] || '');
+        typ = (rawType.includes('entr') || rawType === 'income' || rawType.includes('accredit')) ? 'income' : 'expense';
+      } else {
+        // Determine type from amount sign; negative indicates expense
+        typ = amount < 0 ? 'expense' : 'income';
+      }
+      const absAmount = Math.abs(amount);
+      if(mapping.category >= 0 && r[mapping.category]) {
+        catName = r[mapping.category];
+      } else {
+        // Guess category only for expenses
+        if(typ === 'expense') catName = guessCategoryName(description);
+        else catName = 'Accrediti / Entrata';
+      }
+      if(mapping.notes >= 0) {
+        notes = r[mapping.notes];
+      }
+      const key = `${date}|${norm(description)}|${absAmount}|${typ}`;
+      const duplicate = existing.has(key);
+      const status = duplicate ? 'duplicate' : 'ok';
+      out.push({index: i, date, description, amount: absAmount, type: typ, categoryName: catName, notes, status});
+    });
+    setPreviewRows(out);
+  }, [rows, mapping, data.transactions]);
+  const handleMappingChange = (field, idx) => {
+    setMapping(m => ({...m, [field]: Number(idx)}));
+  };
+  const handleSaveMapping = () => {
+    const name = mappingName.trim();
+    if(!name) {
+      alert('Inserisci un nome per il mapping');
+      return;
+    }
+    setData(d => {
+      const newMappings = {...d.mappings, [name]: mapping};
+      return {...d, mappings: newMappings, settings: {...d.settings, dirtyCount: (d.settings?.dirtyCount || 0) + 1}};
+    });
+    setMappingName('');
+    alert('Mapping salvato');
+  };
+  const handleLoadMapping = (name) => {
+    if(!name) return;
+    const mapObj = data.mappings?.[name];
+    if(mapObj) setMapping(mapObj);
+  };
+  const handleConfirm = () => {
+    if(!previewRows.length) {
+      alert('Nessuna riga da importare');
+      return;
+    }
+    const batchId = uid();
+    setData(d => {
+      const categories = [...d.categories];
+      const transactions = [...d.transactions];
+      let importedCount = 0;
+      previewRows.forEach(row => {
+        if(row.status === 'duplicate' && !importDuplicates) return;
+        let categoryId = 'income';
+        if(row.type === 'expense') {
+          let cat = categories.find(c => norm(c.name) === norm(row.categoryName));
+          if(!cat) {
+            cat = {id: uid(), name: row.categoryName || 'Varie / Altro', budget: 0, type: 'expense', kind: 'variable', color: COLORS[categories.length % COLORS.length]};
+            categories.push(cat);
+          }
+          categoryId = cat.id;
+        }
+        transactions.push({id: uid(), date: row.date, description: row.description, categoryId, type: row.type, amount: row.amount, notes: row.notes || '', importBatchId: batchId, importedAt: new Date().toISOString(), importSource: file.name});
+        importedCount++;
+      });
+      const newMappings = {...d.mappings};
+      const saveName = mappingName.trim();
+      if(saveName) newMappings[saveName] = mapping;
+      return {...d, categories, transactions, mappings: newMappings, lastImportBatchId: batchId, settings: {...d.settings, dirtyCount: (d.settings?.dirtyCount || 0) + importedCount}};
+    });
+    alert('Importazione completata');
+    setImporter(null);
+  };
+  return (
+    <div className="modal">
+      <div className="sheet large">
+        <button className="x" onClick={() => setImporter(null)}><X/></button>
+        <h2>Importa CSV</h2>
+        <p>{rows.length} righe totali. {previewRows.filter(r => r.status === 'duplicate').length} possibili duplicati.</p>
+        {header.length > 0 && (
+          <div className="mapping">
+            <h3>Associa colonne</h3>
+            {['date','description','amount','category','type','notes'].map(field => (
+              <div key={field} className="mapRow">
+                <label>{field === 'date' ? 'Data' : field === 'description' ? 'Descrizione' : field === 'amount' ? 'Importo' : field === 'category' ? 'Categoria' : field === 'type' ? 'Tipo' : 'Note'}</label>
+                <select value={mapping[field]} onChange={e => handleMappingChange(field, e.target.value)}>
+                  <option value={-1}>Ignora</option>
+                  {header.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+        {data.mappings && Object.keys(data.mappings).length > 0 && (
+          <div className="mappingSelect">
+            <label>Mapping salvati</label>
+            <select onChange={e => handleLoadMapping(e.target.value)} defaultValue="">
+              <option value="">-- Seleziona --</option>
+              {Object.keys(data.mappings).map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="saveMapping">
+          <input placeholder="Nome mapping (opzionale)" value={mappingName} onChange={e => setMappingName(e.target.value)} />
+          <button type="button" onClick={handleSaveMapping}>Salva mapping</button>
+        </div>
+        <div className="dupToggle">
+          <label><input type="checkbox" checked={importDuplicates} onChange={e => setImportDuplicates(e.target.checked)} /> Importa anche i duplicati</label>
+        </div>
+        <div className="previewRows">
+          <h3>Anteprima</h3>
+          {previewRows.slice(0,20).map(row => (
+            <div key={row.index} className={`previewRow ${row.status}`}>
+              <span>{row.date}</span>
+              <b>{row.description}</b>
+              <span>{row.categoryName}</span>
+              <strong>{row.type === 'income' ? '+' : '-'}{eur(row.amount)}</strong>
+              {row.status === 'duplicate' && <em>Duplicato</em>}
+            </div>
+          ))}
+        </div>
+        <div className="importActions">
+          <button className="secondary" onClick={() => setImporter(null)}>Annulla</button>
+          <button className="primary" onClick={handleConfirm}>Conferma importazione</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function CsvPreview({preview,close,confirm}){return <div className="modal"><div className="sheet large"><button className="x" onClick={close}><X/></button><h2>Anteprima import CSV</h2><p>{preview.rows.length} righe rilevate · {preview.duplicates} possibili duplicati verranno saltati.</p><div className="preview">{preview.rows.slice(0,20).map(r=><div key={r.id}><span>{r.date}</span><b>{r.description}</b><span>{r.categoryName}</span><strong>{eur(r.amount)}</strong></div>)}</div><button className="primary" onClick={confirm}>Importa senza duplicati</button></div></div>}
 
 createRoot(document.getElementById('root')).render(<App/>);
