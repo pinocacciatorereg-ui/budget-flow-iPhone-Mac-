@@ -287,11 +287,11 @@ const makeBackup=()=>{
               setTab={setTab}
               recurrenceInfo={recurrenceInfo}
             />
-            {/* Quick add card replaces the floating FAB on the dashboard. */}
+            {/* Quick add card becomes a standard new transaction card. It opens the full transaction modal instead of the quick sheet. */}
             <div className="panel quickAddCard">
               <h2>+ Aggiungi spesa</h2>
               <p>Scegli importo, categoria e salva in pochi secondi.</p>
-              <button className="primary" onClick={() => setModal({ type: 'quick' })}>
+              <button className="primary" onClick={() => setModal({ type: 'tx' })}>
                 <Plus size={16} />
                 Nuova spesa
               </button>
@@ -306,9 +306,9 @@ const makeBackup=()=>{
             setSelected={setSelected}
             query={query}
             setQuery={setQuery}
-            // Use the quick-add sheet instead of the full transaction modal on the
-            // transactions page. This opens the compact “Inserimento rapido” form.
-            onAdd={() => setModal({ type: 'quick' })}
+            // Use the full transaction modal for adding a new transaction on the
+            // transactions page. This preserves the linear, simple form design.
+            onAdd={() => setModal({ type: 'tx' })}
             onEdit={t => setModal({ type: 'tx', tx: t })}
             onDelete={delTx}
             onDup={duplicate}
