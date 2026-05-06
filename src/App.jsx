@@ -103,7 +103,7 @@ const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
   // v25: update the application data version. This number is stored alongside
   // user data in localStorage and signals the schema version for migrations.
-  version:46,
+  version:48,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -154,7 +154,7 @@ function useData(){
     // and override version to help with future migrations.
     // Persist the user data with the current schema version (43). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 45 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 48 }));
   }, [data]);
   return [data, setData];
 }
@@ -248,9 +248,9 @@ const makeBackup=()=>{
   // version fields are pulled from the current data or default to 30 for v30.
   const backupObj = {
     app: 'BudgetFlow',
-    version: data?.version ?? 34,
-    schemaVersion: data?.schemaVersion ?? 34,
-    appVersion: data?.appVersion ?? '34',
+    version: data?.version ?? 48,
+    schemaVersion: data?.schemaVersion ?? 48,
+    appVersion: data?.appVersion ?? '48',
     createdAt: new Date().toISOString(),
     data,
   };
