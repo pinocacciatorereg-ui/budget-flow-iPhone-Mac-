@@ -473,15 +473,16 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
         <div className="sectionTitle compactTitle"><h2>Distribuzione spese</h2>{positive.length>0&&<span className="tinyPill">{positive.length} categorie</span>}</div>
         {positive.length ? <>
           <div className="donutWrap compactDonutWrap">
-            <svg viewBox="0 0 180 180" className="donut compactDonut">
-              {positive.map(c=>{const dash=(c.share||0)/100*circumference;const el=<circle key={c.id} cx="90" cy="90" r="72" fill="none" stroke={c.color} strokeWidth="20" strokeDasharray={`${dash} ${circumference-dash}`} strokeDashoffset={-offset} strokeLinecap="butt"/>;offset+=dash;return el})}
-              <circle cx="90" cy="90" r="50" fill="var(--card)"/>
-              <text x="90" y="84" textAnchor="middle" className="donutTotal">{eur(stats.spent)}</text>
-              <text x="90" y="105" textAnchor="middle" className="donutSub">spese</text>
-            </svg>
+            <div className="donutBox">
+              <svg viewBox="0 0 180 180" className="donut compactDonut" aria-label={`Totale spese ${eur(stats.spent)}`}>
+                {positive.map(c=>{const dash=(c.share||0)/100*circumference;const el=<circle key={c.id} cx="90" cy="90" r="72" fill="none" stroke={c.color} strokeWidth="20" strokeDasharray={`${dash} ${circumference-dash}`} strokeDashoffset={-offset} strokeLinecap="butt"/>;offset+=dash;return el})}
+                <circle cx="90" cy="90" r="50" fill="var(--card)"/>
+              </svg>
+              <div className="donutCenter"><strong>{eur(stats.spent)}</strong><span>spese</span></div>
+            </div>
           </div>
           <div className="chartInsight"><CheckCircle2 size={16}/><span>{insight}</span></div>
-          <div className="legend compact percentLegend">
+          <div className={showAllDist?"legend compact percentLegend expanded":"legend compact percentLegend"}>
             {visibleDist.map(c=><div key={c.id} className="legendRow"><span style={{background:c.color}}/><b>{c.name}</b><strong>{eur(c.spent)}</strong><em>{c.share.toFixed(1)}%</em></div>)}
           </div>
           {positive.length>6&&<button className="showMoreBtn" onClick={()=>setShowAllDist(v=>!v)}>{showAllDist?'Mostra meno':'Mostra tutte'}</button>}
@@ -490,7 +491,7 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
       <div className="panel mobileCompact categoryBarsPanel">
         <div className="sectionTitle compactTitle"><h2>Spese per categoria</h2>{positive.length>0&&<span className="tinyPill">%</span>}</div>
         {positive.length ? <>
-          <CategoryBars items={visibleBars}/>
+          <CategoryBars items={visibleBars} expanded={showAllBars}/>
           {positive.length>8&&<button className="showMoreBtn" onClick={()=>setShowAllBars(v=>!v)}>{showAllBars?'Mostra meno':'Mostra tutte'}</button>}
         </> : <EmptyChart />}
       </div>
@@ -500,10 +501,10 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
     <section className="panel mobileDetail"><h2>Budget vs speso</h2><div className="budgetList">{stats.byCat.map(c=><div key={c.id} className="budgetRow"><div><span style={{background:c.color}}/>{c.name}</div><strong>{eur(c.spent)} / {eur(c.budget)}</strong><div className="track"><i style={{width:`${Math.min(100,c.pct)}%`,background:c.pct>=100?'#ef4444':c.pct>=80?'#facc15':'#22c55e'}}/></div></div>)}</div></section>
   </>}
 function EmptyChart(){return <div className="emptyChart"><b>Nessuna spesa registrata questo mese</b><span>Aggiungi una spesa per vedere la distribuzione.</span></div>}
-function CategoryBars({ items }) {
+function CategoryBars({ items, expanded=false }) {
   const max = Math.max(1, ...items.map((i) => i.spent));
   return (
-    <div className="mobileBars compactBars">
+    <div className={expanded?"mobileBars compactBars expanded":"mobileBars compactBars"}>
       {items.map((i) => (
         <div key={i.id} className="mbar compactMbar">
           <div className="mbarTop compactMbarTop">

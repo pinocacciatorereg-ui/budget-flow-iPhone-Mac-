@@ -1472,3 +1472,70 @@
   .nativeCard.txCardV52{grid-template-columns:22px 12px minmax(0,1fr) auto!important;}
   .txCardV52 .txAmountText{max-width:104px;}
 }
+
+/* v53 - Correzione dashboard grafici su iPhone: totale ciambella visibile e Mostra tutte reale */
+.donutBox{
+  position:relative;
+  width:min(260px,68vw);
+  margin:0 auto;
+  display:grid;
+  place-items:center;
+}
+.donutBox .compactDonut,
+.donutBox .donut{
+  width:100%;
+  max-width:100%;
+}
+.donutCenter{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  text-align:center;
+  transform:none!important;
+}
+.donutCenter strong{
+  color:var(--text);
+  font-size:clamp(20px,5.5vw,32px);
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.donutCenter span{
+  color:var(--muted);
+  font-size:clamp(12px,3.2vw,16px);
+  font-weight:700;
+  margin-top:6px;
+}
+/* Nasconde il vecchio testo SVG, che su iPhone/Chrome può sparire o posizionarsi male. */
+.donut .donutTotal,
+.donut .donutSub{
+  display:none!important;
+}
+.percentLegend.expanded .legendRow,
+.legend.compact.percentLegend.expanded .legendRow,
+.mobileBars.compactBars.expanded .mbar,
+.mobileBars.compactBars.expanded .compactMbar{
+  display:grid!important;
+}
+@media(max-width:760px){
+  .donutBox{width:min(220px,62vw)}
+  .legend.compact.percentLegend.expanded div:nth-child(n+6),
+  .percentLegend.expanded .legendRow:nth-child(n+6){
+    display:grid!important;
+  }
+  .mobileBars.compactBars.expanded .mbar:nth-child(n+7),
+  .mobileBars.compactBars.expanded .compactMbar:nth-child(n+7){
+    display:block!important;
+  }
+}
+@media(max-width:390px){
+  .donutBox{width:min(205px,60vw)}
+  .percentLegend.expanded .legendRow{
+    grid-template-columns:12px minmax(0,1fr) auto!important;
+  }
+}
