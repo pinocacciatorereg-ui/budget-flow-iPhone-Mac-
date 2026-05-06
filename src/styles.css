@@ -368,6 +368,11 @@
   overflow-x: hidden;
 }
 
+/* Ensure the date input in the new transaction form fills the available width and matches other fields */
+.txSheet input[type="date"] {
+  width: 100%;
+}
+
 /* Refine bottom navigation bar: subtle glass effect and clarity */
 .bottom {
   backdrop-filter: blur(10px);
