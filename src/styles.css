@@ -629,3 +629,39 @@
   .recCard{grid-template-columns:auto 12px 1fr auto;gap:10px;padding:14px}
   .recCard .recActions button{font-size:12px;padding:9px 10px}
 }
+
+/* --- BudgetFlow v35 mobile dashboard enhancements --- */
+/* Show expense percentages and improve layout of the expense distribution list on mobile. */
+.legend.compact div {
+  /* Ensure there is enough spacing between columns and prevent overflow on wider screens */
+  grid-template-columns: 18px 1fr auto auto;
+}
+
+@media(max-width:760px){
+  /* On small screens use flex to layout category, amount and percent neatly */
+  .legend.compact div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend.compact b {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .legend.compact strong,
+  .legend.compact em {
+    white-space: nowrap;
+  }
+  .legend.compact em {
+    display: inline;
+    margin-left: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  /* Scale down donut chart on small screens to free up space */
+  .donut {
+    width: min(240px, 70vw);
+  }
+}
