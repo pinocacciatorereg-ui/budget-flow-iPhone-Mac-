@@ -242,9 +242,21 @@ function App(){
 // the current version number (v17) so that future restores can handle schema
 // changes gracefully.
 const makeBackup=()=>{
+  // Create a comprehensive backup including schema and app version numbers. Include the
+  // entire data object so that categories (with budgets and colors), transactions,
+  // recurrences, settings, budgets, mappings and histories are preserved. The
+  // version fields are pulled from the current data or default to 30 for v30.
+  const backupObj = {
+    app: 'BudgetFlow',
+    version: data?.version ?? 30,
+    schemaVersion: data?.schemaVersion ?? 30,
+    appVersion: data?.appVersion ?? '30',
+    createdAt: new Date().toISOString(),
+    data,
+  };
   download(
     `budgetflow-backup-${today()}.json`,
-    JSON.stringify({ app:'BudgetFlow', version:23, createdAt:new Date().toISOString(), data }, null, 2 )
+    JSON.stringify(backupObj, null, 2)
   );
   localStorage.setItem('budgetflow_last_backup', new Date().toISOString());
   setLastB(lastBackup());

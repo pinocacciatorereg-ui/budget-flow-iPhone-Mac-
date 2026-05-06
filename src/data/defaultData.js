@@ -149,9 +149,11 @@ const defaultRecurrences = [
 export const defaultData = {
   // Schema and application versions for migrations
   // Update schema and app versions for v29
-  schemaVersion: 29,
-  appVersion: '29',
-  version: 29,
+  // Schema and application versions for migrations
+  // Update schema and app versions for v30
+  schemaVersion: 30,
+  appVersion: '30',
+  version: 30,
   // Top-level collections
   categories: defaultCats,
   transactions: demoTx,

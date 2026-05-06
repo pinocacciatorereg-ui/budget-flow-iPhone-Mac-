@@ -180,6 +180,8 @@
   .sheet.large {
     max-height: calc(88dvh);
     overflow-y: auto;
+    /* On small screens, ensure the sheet spans nearly full width without horizontal scroll */
+    width: calc(100% - 24px);
   }
 }
 
@@ -275,11 +277,113 @@
 }
 @media(max-height:720px) and (max-width:760px){.quickModal .sheet.quickV14{max-height:82dvh;gap:7px}.quickHead b{font-size:18px}.quick .bigAmount{font-size:32px!important;min-height:66px;padding:8px!important}.suggestion{display:none}.quickChips{max-height:126px}.favoriteEditor{max-height:185px}.quickNote{display:none}.saveFast{padding:13px}}
 
+/* v30 - miglioramenti import CSV mapping */
+.mapping{
+  display:grid;
+  gap:10px;
+  margin:12px 0;
+}
+.mapRow{
+  display:grid;
+  gap:6px;
+}
+.mapRow label{
+  font-weight:600;
+  font-size:14px;
+  color:var(--text);
+}
+.mapRow select{
+  width:100%;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+  color:var(--text);
+  font-size:16px;
+}
+.mappingSelect{
+  margin-top:12px;
+  display:grid;
+  gap:6px;
+}
+.mappingSelect label{
+  font-weight:600;
+  font-size:14px;
+}
+.mappingSelect select{
+  width:100%;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+  font-size:16px;
+}
+.saveMapping{
+  display:grid;
+  gap:6px;
+  margin-top:12px;
+}
+.saveMapping input{
+  width:100%;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+  font-size:16px;
+}
+.saveMapping button{
+  align-self:start;
+}
+.dupToggle{
+  margin-top:12px;
+}
+.dupToggle label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:14px;
+}
+.previewRows{
+  margin-top:12px;
+  display:grid;
+  gap:8px;
+  max-height:300px;
+  overflow-y:auto;
+}
+.previewRow{
+  display:grid;
+  grid-template-columns:90px 1fr 1fr auto;
+  align-items:center;
+  gap:8px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:color-mix(in oklab,var(--card),var(--bg) 30%);
+  font-size:14px;
+}
+.previewRow.duplicate em{
+  color:#dc2626;
+  font-size:12px;
+}
+.importActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:16px;
+}
+.importActions button{
+  flex:none;
+}
+@media(max-width:760px){
+  .previewRow{grid-template-columns:1fr;gap:6px;font-size:13px}
+}
+
 /* v29 - nuova schermata transazione e ricorrenze mobile */
 /* Transaction modal styling */
 .txSheet{
   max-height:calc(86dvh - 40px);
   overflow-y:auto;
+  overflow-x:hidden;
   display:grid;
   gap:12px;
   border-radius:28px;
