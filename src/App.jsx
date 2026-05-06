@@ -248,9 +248,9 @@ const makeBackup=()=>{
   // version fields are pulled from the current data or default to 30 for v30.
   const backupObj = {
     app: 'BudgetFlow',
-    version: data?.version ?? 33,
-    schemaVersion: data?.schemaVersion ?? 33,
-    appVersion: data?.appVersion ?? '33',
+    version: data?.version ?? 34,
+    schemaVersion: data?.schemaVersion ?? 34,
+    appVersion: data?.appVersion ?? '34',
     createdAt: new Date().toISOString(),
     data,
   };
@@ -674,8 +674,16 @@ function Transactions({tx,cats,selected,setSelected,query,setQuery,onAdd,onEdit,
           <input placeholder="Cerca spesa, categoria, nota" value={query} onChange={e=>setQuery(e.target.value)}/>
         </div>
         {lastImportBatchId && <button className="warning" onClick={undoImport}><RotateCcw size={16}/>Annulla import</button>}
-        {selected.length>0 && <button className="danger" onClick={()=>onDelete(selected)}><Trash2 size={16}/>Elimina {selected.length}</button>}
       </div>
+      {/* When some transactions are selected, show a selection toolbar with additional actions. */}
+      {selected.length > 0 && (
+        <div className="selectToolbar">
+          <span>{selected.length} selezionate</span>
+          <button type="button" onClick={() => setSelected(filtered.map(t => t.id))}>Seleziona tutto</button>
+          <button type="button" onClick={() => setSelected([])}>Deseleziona</button>
+          <button type="button" className="danger" onClick={() => onDelete(selected)}><Trash2 size={16}/>Elimina</button>
+        </div>
+      )}
       {filtered.length===0 ? (
         <div className="empty">Nessuna transazione. Tocca + per aggiungere una spesa in pochi secondi.</div>
       ) : (

@@ -203,6 +203,46 @@
   display: grid;
   gap: 10px;
 }
+
+/* v34 - selection toolbar for transactions on mobile and desktop */
+.selectToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--card), var(--bg) 40%);
+}
+.selectToolbar span {
+  font-weight: 700;
+  font-size: 14px;
+  margin-right: auto;
+}
+.selectToolbar button {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 760px) {
+  .selectToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .selectToolbar span {
+    margin-right: 0;
+    margin-bottom: 6px;
+  }
+  .selectToolbar button {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .quickAddCard h2 {
   margin: 0;
   font-size: 22px;
@@ -528,12 +568,12 @@
   margin: 4px 0 6px;
 }
 
-/* Adjust the width and centering of the date field on the transaction sheet */
+/* Make the date field match the width of other fields on the transaction sheet */
 .txSheet input[type="date"] {
   width: 100%;
-  max-width: 260px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Increase breathing space between panels and grid items on mobile */
