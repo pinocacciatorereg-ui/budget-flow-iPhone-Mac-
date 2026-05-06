@@ -1008,3 +1008,64 @@
     padding: 12px 13px !important;
   }
 }
+
+
+/* v45 - Simplify category selection inside Nuova uscita.
+   The broken favourite editor is removed from this modal: show all categories in a clean vertical list. */
+.txSheet .allCatsHint {
+  margin: -2px 0 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.txSheet .allCategoriesList {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-height: min(36dvh, 320px) !important;
+  padding: 0 2px 2px 0 !important;
+}
+.txSheet .allCategoriesList button {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  min-height: 52px !important;
+  padding: 12px 14px !important;
+  border-radius: 18px !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+}
+.txSheet .allCategoriesList button span {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  flex: 0 0 14px !important;
+}
+.txSheet .allCategoriesList button.sel {
+  border-color: var(--primary) !important;
+  background: linear-gradient(135deg, var(--primary), #7c3aed) !important;
+  color: #fff !important;
+}
+.txSheet .allCategoriesList button.sel span {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.22) !important;
+}
+@media (max-width: 760px) {
+  .txSheet .allCategoriesList {
+    max-height: min(34dvh, 300px) !important;
+  }
+  .txSheet .allCatsHint {
+    font-size: 13px;
+  }
+}

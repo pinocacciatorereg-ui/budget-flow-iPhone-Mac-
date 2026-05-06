@@ -103,7 +103,7 @@ const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
   // v25: update the application data version. This number is stored alongside
   // user data in localStorage and signals the schema version for migrations.
-  version:25,
+  version:45,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -154,7 +154,7 @@ function useData(){
     // and override version to help with future migrations.
     // Persist the user data with the current schema version (43). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 43 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 45 }));
   }, [data]);
   return [data, setData];
 }
@@ -554,76 +554,27 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
           </select>
         </div>
         {f.type === 'expense' && (
-          editFav ? (
-            <div className="favoriteEditorTx">
-              <h3>Categorie preferite</h3>
-              <p className="favGuide">
-                Scegli fino a 6 categorie da mostrare nell’inserimento rapido.
-              </p>
-              <p className="favCount">{favIds.length}/6 selezionate</p>
-              {favError && <p className="favError">{favError}</p>}
-              <div className="favList">
-                {expenseCats.map((c) => (
-                  <div
-                    key={c.id}
-                    className={
-                      'favItem' + (favIds.includes(c.id) ? ' selected' : '')
-                    }
-                    onClick={() => toggleFav(c.id)}
-                  >
-                    <span style={{ background: c.color || '#3b82f6' }} />
-                    <span className="name">{c.name}</span>
-                    {favIds.includes(c.id) && <small>✓</small>}
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="primary favSave"
-                onClick={() => {
-                  setEditFav(false);
-                  setFavError('');
-                }}
-              >
-                Salva preferiti
-              </button>
+          <div className="txCategories">
+            <div className="txCatHeader">
+              <b>Categorie</b>
             </div>
-          ) : (
-            <div className="txCategories">
-              <div className="txCatHeader">
-                <b>Categorie</b>
-                {hasFavs && expenseCats.length > favCats.length && (
-                  <button type="button" onClick={() => setShowCats((s) => !s)}>
-                    {showCats ? 'Preferite' : 'Tutte'}
-                  </button>
-                )}
-                <button type="button" onClick={() => setEditFav(true)}>
-                  Modifica preferiti
+            <p className="allCatsHint">
+              Scegli la categoria della transazione. I preferiti restano disponibili nell’inserimento rapido.
+            </p>
+            <div className="txCatList allCategoriesList">
+              {allCats.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={f.categoryId === c.id ? 'sel' : ''}
+                  onClick={() => selectCat(c.id)}
+                >
+                  <span style={{ background: c.color || '#3b82f6' }} />
+                  {c.name}
                 </button>
-              </div>
-              {!hasFavs && !showCats && (
-                <p className="noFav">
-                  Nessuna categoria preferita. Tocca “Modifica preferiti” per
-                  scegliere fino a 6 categorie.
-                </p>
-              )}
-              <div className="txCatList">
-                {(
-                  showCats || !hasFavs ? allCats : favCats
-                ).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={f.categoryId === c.id ? 'sel' : ''}
-                    onClick={() => selectCat(c.id)}
-                  >
-                    <span style={{ background: c.color || '#3b82f6' }} />
-                    {c.name}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
-          )
+          </div>
         )}
         {f.type === 'income' && (
           <div className="txCategories">
