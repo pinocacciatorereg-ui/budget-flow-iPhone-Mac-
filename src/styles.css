@@ -1069,3 +1069,62 @@
     font-size: 13px;
   }
 }
+
+
+/* v46 - Rimuove la scelta dei preferiti dalla nuova uscita e dall'inserimento rapido.
+   Le categorie sono sempre mostrate come lista completa, stabile e leggibile su iPhone Chrome. */
+.txSheet .allCategoriesList,
+.quickAllCategories {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 9px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.txSheet .allCategoriesList {
+  max-height: 42dvh;
+}
+.quickAllCategories {
+  max-height: 30dvh;
+  padding-right: 2px;
+}
+@supports not (height: 1dvh) {
+  .txSheet .allCategoriesList { max-height: 42vh; }
+  .quickAllCategories { max-height: 30vh; }
+}
+.txSheet .allCategoriesList button,
+.quickAllCategories button {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.quickAllCategories button span,
+.txSheet .allCategoriesList button span {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 13px;
+}
+.quickCatsHint,
+.allCatsHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+@media (max-width: 760px) {
+  .quickAllCategories { max-height: 28dvh; }
+  .txSheet .allCategoriesList { max-height: 38dvh; }
+}

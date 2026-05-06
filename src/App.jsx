@@ -103,7 +103,7 @@ const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
   // v25: update the application data version. This number is stored alongside
   // user data in localStorage and signals the schema version for migrations.
-  version:45,
+  version:46,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -471,45 +471,9 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
     amount: '',
     notes: '',
   });
-  const [showCats, setShowCats] = useState(false);
-  // Toggle favourite editing mode
-  const [editFav, setEditFav] = useState(false);
-  // Inline error message for favourite selection limit
-  const [favError, setFavError] = useState('');
-  // Determine expense categories and favourites
   const expenseCats = cats.filter((c) => c.type === 'expense');
-  // Favourite category IDs from settings. Do not auto-select defaults; allow user choice.
-  const favIds = settings?.quickFavorites && settings.quickFavorites.length
-    ? settings.quickFavorites
-    : [];
-  const favCats = expenseCats.filter((c) => favIds.includes(c.id));
   const allCats = expenseCats;
-  // Whether there are any favourite categories saved
-  const hasFavs = favCats.length > 0;
   const selectCat = (id) => setF((prev) => ({ ...prev, categoryId: id }));
-  // Toggle a category as favourite. Limit to 6 favourites.
-  const toggleFav = (id) => {
-    const exists = favIds.includes(id);
-    let next = exists ? favIds.filter((x) => x !== id) : [...favIds, id];
-    // When adding a new favourite, ensure we do not exceed 6
-    if (!exists && next.length > 6) {
-      setFavError('Puoi scegliere al massimo 6 categorie preferite.');
-      return;
-    }
-    // Clear any previous error
-    setFavError('');
-    // Persist in settings using setData
-    if (setData) {
-      setData((d) => ({
-        ...d,
-        settings: {
-          ...d.settings,
-          quickFavorites: next,
-          dirtyCount: (d.settings?.dirtyCount || 0) + 1,
-        },
-      }));
-    }
-  };
   const onSubmit = (e) => {
     e.preventDefault();
     save({ ...f, amount: parseEuro(f.amount) });
@@ -559,7 +523,7 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
               <b>Categorie</b>
             </div>
             <p className="allCatsHint">
-              Scegli la categoria della transazione. I preferiti restano disponibili nell’inserimento rapido.
+              Scegli una categoria. Le preferite sono state rimosse da questa schermata per rendere l’inserimento più stabile su iPhone.
             </p>
             <div className="txCatList allCategoriesList">
               {allCats.map((c) => (
@@ -602,12 +566,8 @@ function QuickAdd({cats,last,settings,setData,txAll,save,close}){
  const [cat,setCat]=useState(last||cats[0]?.id);
  const [note,setNote]=useState('');
  const [date,setDate]=useState(today());
- const [editFav,setEditFav]=useState(false);
  const lastExpense=txAll.find(t=>t.type==='expense');
  const expenseCats=cats.filter(c=>c.type==='expense');
- const favIds=(settings.quickFavorites&&settings.quickFavorites.length?settings.quickFavorites:expenseCats.slice(0,6).map(c=>c.id)).filter(id=>expenseCats.some(c=>c.id===id));
- const fav=expenseCats.filter(c=>favIds.includes(c.id));
- const toggleFav=id=>{const exists=favIds.includes(id);let next=exists?favIds.filter(x=>x!==id):[...favIds,id]; if(next.length>8)next=next.slice(next.length-8); setData(d=>({...d,settings:{...d.settings,quickFavorites:next,dirtyCount:(d.settings?.dirtyCount||0)+1}}));};
  const rules=[
   {keys:['netflix','spotify','icloud','apple','prime','disney','dazn'],hint:'Abbonamenti'},
   {keys:['esselunga','conad','coop','lidl','aldi','eurospin','carrefour'],hint:'Spesa'},
@@ -627,8 +587,9 @@ function QuickAdd({cats,last,settings,setData,txAll,save,close}){
   <div className="quickDate"><label>Data</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
   <input className="quickDesc" placeholder="Descrizione opzionale, es. Netflix, Esselunga..." value={desc} onChange={e=>setDesc(e.target.value)} />
   {chosen&&<div className="suggestion"><CheckCircle2 size={16}/><span>Categoria suggerita:</span><b>{chosen.name}</b></div>}
-  <div className="quickRowTitle"><b>Categorie preferite</b><div className="quickRowActions">{lastExpense&&<button type="button" onClick={repeatLast}><RotateCcw size={15}/>Ripeti ultima</button>}<button type="button" onClick={()=>setEditFav(v=>!v)}>{editFav?'Fine':'Modifica preferiti'}</button></div></div>
-  {!editFav?<div className="quickChips">{fav.map(c=><button type="button" className={cat===c.id?'sel':''} key={c.id} onClick={()=>setCat(c.id)}><span style={{background:c.color}}/>{c.name}</button>)}</div>:<div className="favoriteEditor">{expenseCats.map(c=><button type="button" key={c.id} className={favIds.includes(c.id)?'on':''} onClick={()=>toggleFav(c.id)}><span style={{background:c.color}}/>{c.name}<small>{favIds.includes(c.id)?'✓':''}</small></button>)}</div>}
+  <div className="quickRowTitle"><b>Categorie</b><div className="quickRowActions">{lastExpense&&<button type="button" onClick={repeatLast}><RotateCcw size={15}/>Ripeti ultima</button>}</div></div>
+  <p className="allCatsHint quickCatsHint">Scegli una categoria dalla lista completa.</p>
+  <div className="quickChips quickAllCategories">{expenseCats.map(c=><button type="button" className={cat===c.id?'sel':''} key={c.id} onClick={()=>setCat(c.id)}><span style={{background:c.color}}/>{c.name}</button>)}</div>
   <textarea className="quickNote" placeholder="Nota opzionale" value={note} onChange={e=>setNote(e.target.value)} />
   <button className="primary saveFast">Salva spesa</button>
  </form></div>
