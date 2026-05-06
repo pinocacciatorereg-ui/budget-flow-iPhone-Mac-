@@ -274,3 +274,124 @@
   grid-template-columns: repeat(6, 1fr);
 }
 @media(max-height:720px) and (max-width:760px){.quickModal .sheet.quickV14{max-height:82dvh;gap:7px}.quickHead b{font-size:18px}.quick .bigAmount{font-size:32px!important;min-height:66px;padding:8px!important}.suggestion{display:none}.quickChips{max-height:126px}.favoriteEditor{max-height:185px}.quickNote{display:none}.saveFast{padding:13px}}
+
+/* v29 - nuova schermata transazione e ricorrenze mobile */
+/* Transaction modal styling */
+.txSheet{
+  max-height:calc(86dvh - 40px);
+  overflow-y:auto;
+  display:grid;
+  gap:12px;
+  border-radius:28px;
+  padding:24px;
+}
+.txSheet h2{font-size:24px;margin-bottom:12px}
+.txSheet input,.txSheet select,.txSheet textarea{
+  width:100%;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  font-size:16px;
+  background:var(--card);
+  color:var(--text);
+}
+.txSheet .txAmount{
+  font-size:32px;
+  font-weight:800;
+  text-align:center;
+}
+.txSheet .txTypeRow{
+  display:grid;
+  grid-template-columns:80px 1fr;
+  gap:10px;
+  align-items:center;
+}
+.txSheet .txCategories{
+  display:grid;
+  gap:8px;
+}
+.txSheet .txCatHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.txSheet .txCatList{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:8px;
+}
+.txSheet .txCatList button{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:color-mix(in oklab,var(--card),var(--bg) 40%);
+  font-size:14px;
+  cursor:pointer;
+  justify-content:flex-start;
+}
+.txSheet .txCatList button span{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+}
+.txSheet .txCatList button.sel{
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  color:white;
+  border:none;
+}
+.txSheet textarea{
+  min-height:72px;
+  resize:vertical;
+}
+.txSheet .txSave{
+  font-size:18px;
+  padding:14px;
+  margin-top:10px;
+  border-radius:20px;
+  width:100%;
+  text-align:center;
+}
+@media(max-width:760px){
+  .txSheet{max-height:calc(88dvh - 40px);padding:20px}
+  .txSheet h2{font-size:20px}
+  .txSheet .txAmount{font-size:28px}
+  .txSheet .txCatList{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Recurrence card improvements */
+.recCard{
+  grid-template-columns:auto 12px 1fr auto;
+  align-items:flex-start;
+}
+.recCard .recActions{
+  grid-column:1 / -1;
+  display:flex;
+  gap:8px;
+  margin-top:6px;
+}
+.recCard .recActions button{
+  flex:1;
+  font-size:13px;
+  padding:10px 12px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:color-mix(in oklab,var(--card),var(--bg) 50%);
+  color:var(--text);
+}
+.recCard .recActions button:first-child{
+  background:#2563eb;
+  color:white;
+  border:none;
+}
+.recCard .recActions button:last-child{
+  background:#fee2e2;
+  color:#dc2626;
+  border:none;
+}
+@media(max-width:760px){
+  .recCard{grid-template-columns:auto 12px 1fr auto;gap:10px;padding:14px}
+  .recCard .recActions button{font-size:12px;padding:9px 10px}
+}

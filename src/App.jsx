@@ -385,7 +385,7 @@ const makeBackup=()=>{
         <Tab id="backup" tab={tab} setTab={setTab} icon={<FileJson />} label="Backup" />
       </nav>
       {modal?.type === 'tx' && (
-        <TxModal tx={modal.tx} cats={cats} save={saveTx} close={() => setModal(null)} />
+        <TxModal tx={modal.tx} cats={cats} save={saveTx} close={() => setModal(null)} settings={data.settings || {}} />
       )}
       {modal?.type === 'quick' && (
         <QuickAdd
@@ -424,7 +424,110 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){const positive=stats
 function CategoryBars({items}){const max=Math.max(1,...items.map(i=>i.spent));return <div className="mobileBars">{items.map(i=><div key={i.id} className="mbar"><div className="mbarTop"><span style={{background:i.color}}/>{i.name}<b>{eur(i.spent)}</b></div><div className="track"><i style={{width:`${i.spent/max*100}%`,background:i.color}}/></div></div>)}</div>}
 function Insight({text}){return <div className="insight"><CheckCircle2 size={18}/>{text}</div>}
 function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){const [x,setX]=useState(0);const sx=useRef(0);const dx=useRef(0);const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-96,Math.min(96,v)))};const end=()=>{if(dx.current<-74){setX(-96);setTimeout(()=>{setX(0);onDelete([t.id])},120)}else if(dx.current>74){setX(96);setTimeout(()=>{setX(0);onEdit(t)},120)}else setX(0)};return <div className="swipeShell"><div className="swipeBg left">Modifica</div><div className="swipeBg right">Elimina</div><div className="txCard nativeCard" style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}><input aria-label="Seleziona transazione" type="checkbox" checked={selected.includes(t.id)} onChange={e=>setSelected(s=>e.target.checked?[...s,t.id]:s.filter(x=>x!==t.id))}/><div className="dot" style={{background:t.type==='income'?'#a855f7':c?.color}}/><div className="txMain"><b>{t.description}</b><span>{new Date(t.date).toLocaleDateString('it-IT')} · {t.type==='income'?'Accrediti':c?.name}</span></div><strong className={t.type}>{t.type==='income'?'+':'-'}{eur(t.amount)}</strong><button className="desktopAction" onClick={()=>onDup(t)}><Copy size={16}/></button><button className="desktopAction" onClick={()=>onEdit(t)}>Modifica</button></div></div>}
-function TxModal({tx,cats,save,close}){const [f,setF]=useState(tx||{date:today(),description:'',categoryId:cats[0]?.id,type:'expense',amount:'',notes:''});return <div className="modal"><form className="sheet" onSubmit={e=>{e.preventDefault();save({...f,amount:parseEuro(f.amount)})}}><button className="x" type="button" onClick={close}><X/></button><h2>{tx?'Modifica':'Nuova'} transazione</h2><input type="date" value={f.date} onChange={e=>setF({...f,date:e.target.value})}/><input placeholder="Descrizione" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><input inputMode="decimal" placeholder="Importo" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/><select value={f.type} onChange={e=>setF({...f,type:e.target.value,categoryId:e.target.value==='income'?'income':cats[0]?.id})}><option value="expense">Uscita</option><option value="income">Entrata</option></select>{f.type==='expense'&&<select value={f.categoryId} onChange={e=>setF({...f,categoryId:e.target.value})}>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}<textarea placeholder="Note" value={f.notes||''} onChange={e=>setF({...f,notes:e.target.value})}/><button className="primary">Salva</button></form></div>}
+function TxModal({ tx, cats, save, close, settings }) {
+  const [f, setF] = useState(tx || {
+    date: today(),
+    description: '',
+    categoryId: cats[0]?.id,
+    type: 'expense',
+    amount: '',
+    notes: '',
+  });
+  const [showCats, setShowCats] = useState(false);
+  // Determine expense categories and favourites
+  const expenseCats = cats.filter((c) => c.type === 'expense');
+  const favIds = settings?.quickFavorites && settings.quickFavorites.length
+    ? settings.quickFavorites
+    : expenseCats.slice(0, 6).map((c) => c.id);
+  const favCats = expenseCats.filter((c) => favIds.includes(c.id));
+  const allCats = expenseCats;
+  const selectCat = (id) => setF((prev) => ({ ...prev, categoryId: id }));
+  const onSubmit = (e) => {
+    e.preventDefault();
+    save({ ...f, amount: parseEuro(f.amount) });
+  };
+  const handleTypeChange = (val) => {
+    if (val === 'income') {
+      setF((prev) => ({ ...prev, type: val, categoryId: 'income' }));
+    } else {
+      setF((prev) => ({ ...prev, type: val, categoryId: expenseCats[0]?.id }));
+    }
+  };
+  return (
+    <div className="modal">
+      <form className="sheet txSheet" onSubmit={onSubmit}>
+        <button className="x" type="button" onClick={close}>
+          <X />
+        </button>
+        <h2>{tx ? 'Modifica transazione' : (f.type === 'income' ? 'Nuova entrata' : 'Nuova uscita')}</h2>
+        <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+        <input
+          className="txAmount"
+          inputMode="decimal"
+          placeholder="0,00 €"
+          value={f.amount}
+          onChange={(e) => setF({ ...f, amount: e.target.value })}
+        />
+        <input
+          placeholder="Descrizione"
+          value={f.description}
+          onChange={(e) => setF({ ...f, description: e.target.value })}
+        />
+        <div className="txTypeRow">
+          <label>Tipo</label>
+          <select
+            value={f.type}
+            onChange={(e) => handleTypeChange(e.target.value)}
+          >
+            <option value="expense">Uscita</option>
+            <option value="income">Entrata</option>
+          </select>
+        </div>
+        {f.type === 'expense' && (
+          <div className="txCategories">
+            <div className="txCatHeader">
+              <b>Categorie</b>
+              {expenseCats.length > favCats.length && (
+                <button type="button" onClick={() => setShowCats((s) => !s)}>
+                  {showCats ? 'Preferite' : 'Tutte'}
+                </button>
+              )}
+            </div>
+            <div className="txCatList">
+              {(showCats ? allCats : favCats).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={f.categoryId === c.id ? 'sel' : ''}
+                  onClick={() => selectCat(c.id)}
+                >
+                  <span style={{ background: c.color || '#3b82f6' }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {f.type === 'income' && (
+          <div className="txCategories">
+            <div className="txCatList">
+              <button type="button" className="sel">
+                <span style={{ background: '#22c55e' }} />
+                Accrediti / Entrata
+              </button>
+            </div>
+          </div>
+        )}
+        <textarea
+          placeholder="Note"
+          value={f.notes || ''}
+          onChange={(e) => setF({ ...f, notes: e.target.value })}
+        />
+        <button className="primary txSave">Salva</button>
+      </form>
+    </div>
+  );
+}
 function QuickAdd({cats,last,settings,setData,txAll,save,close}){
  const [amount,setAmount]=useState('');
  const [desc,setDesc]=useState('');
@@ -823,19 +926,25 @@ function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceI
         const date = `${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;
         const exists = txAll.some(t => t.date===date && t.description===r.description && Number(t.amount)===Number(r.amount) && t.type===r.type);
         const color = r.type === 'income' ? '#22c55e' : (cats.find(c => c.id === r.categoryId)?.color || '#3b82f6');
-        return <div className={`txCard recCard ${!r.active?'muted':''}`} style={{gridTemplateColumns:'auto 14px 1fr auto auto auto auto'}} key={r.id}>
-          <CalendarClock/>
-          <span className="dot" style={{background: color}}></span>
+      return (
+        <div className={`txCard recCard ${!r.active ? 'muted' : ''}`} key={r.id}>
+          <CalendarClock />
+          <span className="dot" style={{ background: color }}></span>
           <div className="txMain">
             <b>{r.description}</b>
-            <span>{r.type==='income'?'Entrata':'Uscita'} · giorno {r.day} · {catName(r.categoryId)} · avviso {r.remindDays??0}g</span>
+            <span>{r.type === 'income' ? 'Entrata' : 'Uscita'} · pagamento giorno {r.day} · {catName(r.categoryId)} · promemoria {r.remindDays ?? 0}g</span>
             <small>{exists ? 'Già applicata al mese corrente' : 'Da applicare al mese corrente'}</small>
           </div>
-          <strong className={r.type==='income' ? 'pos' : 'neg'}>{r.type==='income' ? '+' : '-'}{eur(r.amount)}</strong>
-          <button onClick={() => toggle(r.id)}>{r.active ? 'On' : 'Off'}</button>
-          <button onClick={() => setEditRec(r)}>Modifica</button>
-          <button onClick={() => remove(r.id)}><Trash2 size={16}/></button>
-        </div>;
+          <strong className={r.type === 'income' ? 'pos' : 'neg'}>
+            {r.type === 'income' ? '+' : '-'}{eur(r.amount)}
+          </strong>
+          <div className="recActions">
+            <button type="button" onClick={() => toggle(r.id)}>{r.active ? 'Disattiva' : 'Attiva'}</button>
+            <button type="button" onClick={() => setEditRec(r)}>Modifica</button>
+            <button type="button" onClick={() => remove(r.id)}><Trash2 size={16} /></button>
+          </div>
+        </div>
+      );
       })}
     </div>
     {editRec && <RecurrenceEditor rec={editRec} close={() => setEditRec(null)} />}
