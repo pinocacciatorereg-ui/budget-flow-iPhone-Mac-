@@ -1,7 +1,16 @@
 
 {
 
-  "installCommand": "npm ci --no-audit --no-fund",
+  "buildCommand": "npm run build",
+
+  "outputDirectory": "dist"
+
+}
+cd ~/Documents/budgetflow-v5
+
+cat > vercel.json <<'EOF'
+
+{
 
   "buildCommand": "npm run build",
 
