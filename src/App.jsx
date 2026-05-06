@@ -152,9 +152,9 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    // Persist the user data with the current schema version (42). This value is
+    // Persist the user data with the current schema version (43). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 42 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 43 }));
   }, [data]);
   return [data, setData];
 }
@@ -474,6 +474,8 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
   const [showCats, setShowCats] = useState(false);
   // Toggle favourite editing mode
   const [editFav, setEditFav] = useState(false);
+  // Inline error message for favourite selection limit
+  const [favError, setFavError] = useState('');
   // Determine expense categories and favourites
   const expenseCats = cats.filter((c) => c.type === 'expense');
   // Favourite category IDs from settings. Do not auto-select defaults; allow user choice.
@@ -489,10 +491,13 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
   const toggleFav = (id) => {
     const exists = favIds.includes(id);
     let next = exists ? favIds.filter((x) => x !== id) : [...favIds, id];
-    if (next.length > 6) {
-      alert('Puoi scegliere al massimo 6 categorie preferite');
+    // When adding a new favourite, ensure we do not exceed 6
+    if (!exists && next.length > 6) {
+      setFavError('Puoi scegliere al massimo 6 categorie preferite.');
       return;
     }
+    // Clear any previous error
+    setFavError('');
     // Persist in settings using setData
     if (setData) {
       setData((d) => ({
@@ -551,23 +556,36 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
         {f.type === 'expense' && (
           editFav ? (
             <div className="favoriteEditorTx">
-              <p className="info">
+              <h3>Categorie preferite</h3>
+              <p className="favGuide">
                 Scegli fino a 6 categorie da mostrare nell’inserimento rapido.
               </p>
-              {expenseCats.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={favIds.includes(c.id) ? 'on' : ''}
-                  onClick={() => toggleFav(c.id)}
-                >
-                  <span style={{ background: c.color || '#3b82f6' }} />
-                  {c.name}
-                  {favIds.includes(c.id) && <small>✓</small>}
-                </button>
-              ))}
-              <button type="button" onClick={() => setEditFav(false)}>
-                Fine
+              <p className="favCount">{favIds.length}/6 selezionate</p>
+              {favError && <p className="favError">{favError}</p>}
+              <div className="favList">
+                {expenseCats.map((c) => (
+                  <div
+                    key={c.id}
+                    className={
+                      'favItem' + (favIds.includes(c.id) ? ' selected' : '')
+                    }
+                    onClick={() => toggleFav(c.id)}
+                  >
+                    <span style={{ background: c.color || '#3b82f6' }} />
+                    <span className="name">{c.name}</span>
+                    {favIds.includes(c.id) && <small>✓</small>}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="primary favSave"
+                onClick={() => {
+                  setEditFav(false);
+                  setFavError('');
+                }}
+              >
+                Salva preferiti
               </button>
             </div>
           ) : (

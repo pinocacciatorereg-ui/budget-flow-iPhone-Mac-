@@ -166,6 +166,105 @@
   .quick .bigAmount {
     font-size: 38px !important;
   }
+
+/* v43 - Favourite categories editor improvements and date field alignment */
+/* The favourite editor inside the transaction modal (TxModal) should be fully responsive and clear on mobile. */
+.favoriteEditorTx {
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  /* Limit the height so the list remains scrollable and the save button stays visible */
+  max-height: 60dvh;
+  /* Fallback for browsers that do not support dvh */
+  max-height: 60vh;
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+/* Guide text inside the favourite editor */
+.favoriteEditorTx .favGuide {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+/* Count of selected favourites */
+.favoriteEditorTx .favCount {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+/* Inline error message when selecting more than 6 favourites */
+.favoriteEditorTx .favError {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 0;
+}
+/* List of categories in the favourite editor */
+.favoriteEditorTx .favList {
+  display: grid;
+  /* Always one column on mobile to avoid clipping */
+  grid-template-columns: 1fr;
+  gap: 8px;
+  overflow-y: auto;
+  /* Leave room for header and save button */
+  max-height: calc(60dvh - 120px);
+  max-height: calc(60vh - 120px);
+  padding-right: 2px;
+}
+/* Individual favourite item */
+.favoriteEditorTx .favItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  position: relative;
+}
+/* Colour dot for each category */
+.favoriteEditorTx .favItem span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+/* Category name inside favourite item */
+.favoriteEditorTx .favItem .name {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Checkmark indicator when a category is selected */
+.favoriteEditorTx .favItem small {
+  font-size: 18px;
+  line-height: 1;
+  margin-left: auto;
+  color: inherit;
+}
+/* Style for selected favourite items */
+.favoriteEditorTx .favItem.selected {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #ffffff;
+  border: none;
+}
+.favoriteEditorTx .favItem.selected small {
+  font-weight: 700;
+}
+/* Save button in favourite editor */
+.favoriteEditorTx .favSave {
+  margin-top: 8px;
+  width: 100%;
+  justify-content: center;
+}
+@media (max-width: 760px) {
+  /* Ensure the favourite editor list stays one column on small screens */
+  .favoriteEditorTx .favList {
+    grid-template-columns: 1fr;
+  }
+}
   /* Limit the height of the quick add sheet on small screens */
   .quickModal .sheet.quickV14 {
     max-height: 82dvh !important;

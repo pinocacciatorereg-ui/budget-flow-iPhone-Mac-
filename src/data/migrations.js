@@ -56,10 +56,10 @@ function normalizeRecurrence(rec) {
  */
 export function migrateData(data = {}) {
   const result = { ...defaultData, ...data };
-  // Update version identifiers for v42
-  result.schemaVersion = 42;
-  result.appVersion = '42';
-  result.version = 42;
+  // Update version identifiers for v43
+  result.schemaVersion = 43;
+  result.appVersion = '43';
+  result.version = 43;
   // Categories
   result.categories = (data.categories || defaultData.categories).map((c, i) => normalizeCategory(c, i));
   // Transactions
