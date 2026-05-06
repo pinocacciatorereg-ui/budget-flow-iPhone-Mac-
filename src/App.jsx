@@ -103,7 +103,7 @@ const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
   // v25: update the application data version. This number is stored alongside
   // user data in localStorage and signals the schema version for migrations.
-  version:49,
+  version:50,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -154,7 +154,7 @@ function useData(){
     // and override version to help with future migrations.
     // Persist the user data with the current schema version (43). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 49 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 50 }));
   }, [data]);
   return [data, setData];
 }
@@ -248,9 +248,9 @@ const makeBackup=()=>{
   // version fields are pulled from the current data or default to 30 for v30.
   const backupObj = {
     app: 'BudgetFlow',
-    version: data?.version ?? 49,
-    schemaVersion: data?.schemaVersion ?? 49,
-    appVersion: data?.appVersion ?? '49',
+    version: data?.version ?? 50,
+    schemaVersion: data?.schemaVersion ?? 50,
+    appVersion: data?.appVersion ?? '50',
     createdAt: new Date().toISOString(),
     data,
   };
@@ -520,7 +520,38 @@ function CategoryBars({ items }) {
   );
 }
 function Insight({text}){return <div className="insight"><CheckCircle2 size={18}/>{text}</div>}
-function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){const [x,setX]=useState(0);const sx=useRef(0);const dx=useRef(0);const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-96,Math.min(96,v)))};const end=()=>{if(dx.current<-74){setX(-96);setTimeout(()=>{setX(0);onDelete([t.id])},120)}else if(dx.current>74){setX(96);setTimeout(()=>{setX(0);onEdit(t)},120)}else setX(0)};return <div className="swipeShell"><div className="swipeBg left">Modifica</div><div className="swipeBg right">Elimina</div><div className="txCard nativeCard" style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}><input aria-label="Seleziona transazione" type="checkbox" checked={selected.includes(t.id)} onChange={e=>setSelected(s=>e.target.checked?[...s,t.id]:s.filter(x=>x!==t.id))}/><div className="dot" style={{background:t.type==='income'?'#a855f7':c?.color}}/><div className="txMain"><b>{t.description}</b><span>{new Date(t.date).toLocaleDateString('it-IT')} · {t.type==='income'?'Accrediti':c?.name}</span></div><strong className={t.type}>{t.type==='income'?'+':'-'}{eur(t.amount)}</strong><button className="desktopAction" onClick={()=>onDup(t)}><Copy size={16}/></button><button className="desktopAction" onClick={()=>onEdit(t)}>Modifica</button></div></div>}
+function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){
+  const [x,setX]=useState(0);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const sx=useRef(0);
+  const dx=useRef(0);
+  const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};
+  const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-96,Math.min(96,v)))};
+  const end=()=>{if(dx.current<-74){setX(-96);setTimeout(()=>{setX(0);onDelete([t.id])},120)}else if(dx.current>74){setX(96);setTimeout(()=>{setX(0);onEdit(t)},120)}else setX(0)};
+  const toggleSelected=e=>setSelected(s=>e.target.checked?[...s,t.id]:s.filter(x=>x!==t.id));
+  const action=(fn)=>{setMenuOpen(false);fn()};
+  return <div className="swipeShell txSwipeShell">
+    <div className="swipeBg left">Modifica</div>
+    <div className="swipeBg right">Elimina</div>
+    <div className="txCard nativeCard txCardV50" style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}>
+      <input aria-label="Seleziona transazione" type="checkbox" checked={selected.includes(t.id)} onChange={toggleSelected}/>
+      <div className="dot txCatDot" style={{background:t.type==='income'?'#22c55e':(c?.color||'#3b82f6')}}/>
+      <div className="txMain">
+        <b>{t.description}</b>
+        <span>{new Date(t.date).toLocaleDateString('it-IT')} · {t.type==='income'?'Accrediti':c?.name}</span>
+      </div>
+      <strong className={`txAmountText ${t.type}`}>{t.type==='income'?'+':'-'}{eur(t.amount)}</strong>
+      <div className="txActions">
+        <button className="txMore" type="button" aria-label="Azioni transazione" aria-expanded={menuOpen} onClick={(e)=>{e.stopPropagation();setMenuOpen(v=>!v)}}>⋯</button>
+        {menuOpen&&<div className="txMenu" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}>
+          <button type="button" onClick={()=>action(()=>onEdit(t))}>Modifica</button>
+          <button type="button" onClick={()=>action(()=>onDup(t))}>Duplica</button>
+          <button type="button" className="dangerItem" onClick={()=>action(()=>onDelete([t.id]))}>Elimina</button>
+        </div>}
+      </div>
+    </div>
+  </div>
+}
 function TxModal({ tx, cats, save, close, settings, setData }) {
   const [f, setF] = useState(tx || {
     date: today(),
