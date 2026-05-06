@@ -18,5 +18,8 @@
     "postcss": "latest",
     "autoprefixer": "latest"
   },
-  "version": "54.0.0"
+  "version": "54.0.0",
+  "engines": {
+    "node": "20.x"
+  }
 }
