@@ -445,7 +445,7 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
   const [showAllDist,setShowAllDist]=useState(false);
   const [showAllBars,setShowAllBars]=useState(false);
   const visibleDist=showAllDist?positive:positive.slice(0,6);
-  const visibleBars=showAllBars?positive:positive.slice(0,8);
+  const visibleBars=showAllBars?positive:positive.slice(0,6);
   const circumference=2*Math.PI*72;
   let offset=0;
   const top=positive[0];
@@ -489,10 +489,10 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
         </> : <EmptyChart />}
       </div>
       <div className="panel mobileCompact categoryBarsPanel">
-        <div className="sectionTitle compactTitle"><h2>Spese per categoria</h2>{positive.length>0&&<span className="tinyPill">%</span>}</div>
+        <div className="sectionTitle compactTitle"><h2>Spese per categoria</h2>{positive.length>0&&<span className="tinyPill">{positive.length} categorie</span>}</div>
         {positive.length ? <>
           <CategoryBars items={visibleBars} expanded={showAllBars}/>
-          {positive.length>8&&<button className="showMoreBtn" onClick={()=>setShowAllBars(v=>!v)}>{showAllBars?'Mostra meno':'Mostra tutte'}</button>}
+          {positive.length>6&&<button className="showMoreBtn" onClick={()=>setShowAllBars(v=>!v)}>{showAllBars?'Mostra meno':'Mostra tutte'}</button>}
         </> : <EmptyChart />}
       </div>
     </section>
