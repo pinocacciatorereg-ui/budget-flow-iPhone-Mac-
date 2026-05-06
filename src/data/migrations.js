@@ -56,13 +56,10 @@ function normalizeRecurrence(rec) {
  */
 export function migrateData(data = {}) {
   const result = { ...defaultData, ...data };
-  // Update version identifiers
-  // Update the schema version when migrating to the latest schema (v30).
-  result.schemaVersion = 30;
-  // Record the new application version when upgrading to v30.
-  result.appVersion = '30';
-  // The version field tracks the legacy localStorage version. Set to 30 for v30.
-  result.version = 30;
+  // Update version identifiers for v32
+  result.schemaVersion = 32;
+  result.appVersion = '32';
+  result.version = 32;
   // Categories
   result.categories = (data.categories || defaultData.categories).map((c, i) => normalizeCategory(c, i));
   // Transactions
@@ -81,8 +78,9 @@ export function migrateData(data = {}) {
   result.lastImportBatchId = data.lastImportBatchId ?? null;
   // Settings
   result.settings = { ...defaultData.settings, ...(data.settings || {}) };
+  // Ensure quickFavorites is an array. Do not auto-populate favourites; leave empty for user choice.
   if (!Array.isArray(result.settings.quickFavorites)) {
-    result.settings.quickFavorites = result.categories.slice(0, 6).map((c) => c.id);
+    result.settings.quickFavorites = [];
   }
   if (!('dirtyCount' in result.settings)) result.settings.dirtyCount = 0;
   if (!('pin' in result.settings)) result.settings.pin = '';

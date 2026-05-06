@@ -397,7 +397,15 @@ const makeBackup=()=>{
         <Tab id="backup" tab={tab} setTab={setTab} icon={<FileJson />} label="Backup" />
       </nav>
       {modal?.type === 'tx' && (
-        <TxModal tx={modal.tx} cats={cats} save={saveTx} close={() => setModal(null)} settings={data.settings || {}} />
+        // Pass setData to TxModal so it can update settings.quickFavorites
+        <TxModal
+          tx={modal.tx}
+          cats={cats}
+          save={saveTx}
+          close={() => setModal(null)}
+          settings={data.settings || {}}
+          setData={setData}
+        />
       )}
       {modal?.type === 'quick' && (
         <QuickAdd
@@ -436,7 +444,7 @@ function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){const positive=stats
 function CategoryBars({items}){const max=Math.max(1,...items.map(i=>i.spent));return <div className="mobileBars">{items.map(i=><div key={i.id} className="mbar"><div className="mbarTop"><span style={{background:i.color}}/>{i.name}<b>{eur(i.spent)}</b></div><div className="track"><i style={{width:`${i.spent/max*100}%`,background:i.color}}/></div></div>)}</div>}
 function Insight({text}){return <div className="insight"><CheckCircle2 size={18}/>{text}</div>}
 function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){const [x,setX]=useState(0);const sx=useRef(0);const dx=useRef(0);const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-96,Math.min(96,v)))};const end=()=>{if(dx.current<-74){setX(-96);setTimeout(()=>{setX(0);onDelete([t.id])},120)}else if(dx.current>74){setX(96);setTimeout(()=>{setX(0);onEdit(t)},120)}else setX(0)};return <div className="swipeShell"><div className="swipeBg left">Modifica</div><div className="swipeBg right">Elimina</div><div className="txCard nativeCard" style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}><input aria-label="Seleziona transazione" type="checkbox" checked={selected.includes(t.id)} onChange={e=>setSelected(s=>e.target.checked?[...s,t.id]:s.filter(x=>x!==t.id))}/><div className="dot" style={{background:t.type==='income'?'#a855f7':c?.color}}/><div className="txMain"><b>{t.description}</b><span>{new Date(t.date).toLocaleDateString('it-IT')} · {t.type==='income'?'Accrediti':c?.name}</span></div><strong className={t.type}>{t.type==='income'?'+':'-'}{eur(t.amount)}</strong><button className="desktopAction" onClick={()=>onDup(t)}><Copy size={16}/></button><button className="desktopAction" onClick={()=>onEdit(t)}>Modifica</button></div></div>}
-function TxModal({ tx, cats, save, close, settings }) {
+function TxModal({ tx, cats, save, close, settings, setData }) {
   const [f, setF] = useState(tx || {
     date: today(),
     description: '',
@@ -446,14 +454,39 @@ function TxModal({ tx, cats, save, close, settings }) {
     notes: '',
   });
   const [showCats, setShowCats] = useState(false);
+  // Toggle favourite editing mode
+  const [editFav, setEditFav] = useState(false);
   // Determine expense categories and favourites
   const expenseCats = cats.filter((c) => c.type === 'expense');
+  // Favourite category IDs from settings. Do not auto-select defaults; allow user choice.
   const favIds = settings?.quickFavorites && settings.quickFavorites.length
     ? settings.quickFavorites
-    : expenseCats.slice(0, 6).map((c) => c.id);
+    : [];
   const favCats = expenseCats.filter((c) => favIds.includes(c.id));
   const allCats = expenseCats;
+  // Whether there are any favourite categories saved
+  const hasFavs = favCats.length > 0;
   const selectCat = (id) => setF((prev) => ({ ...prev, categoryId: id }));
+  // Toggle a category as favourite. Limit to 6 favourites.
+  const toggleFav = (id) => {
+    const exists = favIds.includes(id);
+    let next = exists ? favIds.filter((x) => x !== id) : [...favIds, id];
+    if (next.length > 6) {
+      alert('Puoi scegliere al massimo 6 categorie preferite');
+      return;
+    }
+    // Persist in settings using setData
+    if (setData) {
+      setData((d) => ({
+        ...d,
+        settings: {
+          ...d.settings,
+          quickFavorites: next,
+          dirtyCount: (d.settings?.dirtyCount || 0) + 1,
+        },
+      }));
+    }
+  };
   const onSubmit = (e) => {
     e.preventDefault();
     save({ ...f, amount: parseEuro(f.amount) });
@@ -496,29 +529,63 @@ function TxModal({ tx, cats, save, close, settings }) {
           </select>
         </div>
         {f.type === 'expense' && (
-          <div className="txCategories">
-            <div className="txCatHeader">
-              <b>Categorie</b>
-              {expenseCats.length > favCats.length && (
-                <button type="button" onClick={() => setShowCats((s) => !s)}>
-                  {showCats ? 'Preferite' : 'Tutte'}
-                </button>
-              )}
-            </div>
-            <div className="txCatList">
-              {(showCats ? allCats : favCats).map((c) => (
+          editFav ? (
+            <div className="favoriteEditorTx">
+              <p className="info">
+                Scegli fino a 6 categorie da mostrare nell’inserimento rapido.
+              </p>
+              {expenseCats.map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  className={f.categoryId === c.id ? 'sel' : ''}
-                  onClick={() => selectCat(c.id)}
+                  className={favIds.includes(c.id) ? 'on' : ''}
+                  onClick={() => toggleFav(c.id)}
                 >
                   <span style={{ background: c.color || '#3b82f6' }} />
                   {c.name}
+                  {favIds.includes(c.id) && <small>✓</small>}
                 </button>
               ))}
+              <button type="button" onClick={() => setEditFav(false)}>
+                Fine
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="txCategories">
+              <div className="txCatHeader">
+                <b>Categorie</b>
+                {hasFavs && expenseCats.length > favCats.length && (
+                  <button type="button" onClick={() => setShowCats((s) => !s)}>
+                    {showCats ? 'Preferite' : 'Tutte'}
+                  </button>
+                )}
+                <button type="button" onClick={() => setEditFav(true)}>
+                  Modifica preferiti
+                </button>
+              </div>
+              {!hasFavs && !showCats && (
+                <p className="noFav">
+                  Nessuna categoria preferita. Tocca “Modifica preferiti” per
+                  scegliere fino a 6 categorie.
+                </p>
+              )}
+              <div className="txCatList">
+                {(
+                  showCats || !hasFavs ? allCats : favCats
+                ).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={f.categoryId === c.id ? 'sel' : ''}
+                    onClick={() => selectCat(c.id)}
+                  >
+                    <span style={{ background: c.color || '#3b82f6' }} />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
         )}
         {f.type === 'income' && (
           <div className="txCategories">

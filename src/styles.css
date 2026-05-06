@@ -465,6 +465,77 @@
   .txSheet .txCatList{grid-template-columns:repeat(2,1fr)}
 }
 
+/* v31 - favourite editor inside transaction modal */
+.favoriteEditorTx {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+  margin-top: 8px;
+}
+.favoriteEditorTx .info {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+.favoriteEditorTx button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--card), var(--bg) 40%);
+  font-size: 14px;
+  cursor: pointer;
+  justify-content: flex-start;
+}
+.favoriteEditorTx button.on {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  border: none;
+}
+.favoriteEditorTx button span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.favoriteEditorTx button small {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Ensure category pills wrap neatly without overflowing on mobile */
+.txSheet .txCatList {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+@media (max-width: 500px) {
+  .txSheet .txCatList {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Message shown when there are no favourite categories selected */
+.txCategories .noFav {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 4px 0 6px;
+}
+
+/* Center the transaction modal sheet and constrain width on mobile */
+.txSheet {
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Recurrence card improvements */
 .recCard{
   grid-template-columns:auto 12px 1fr auto;

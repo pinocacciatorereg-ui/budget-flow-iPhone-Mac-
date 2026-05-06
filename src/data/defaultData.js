@@ -151,9 +151,10 @@ export const defaultData = {
   // Update schema and app versions for v29
   // Schema and application versions for migrations
   // Update schema and app versions for v30
-  schemaVersion: 30,
-  appVersion: '30',
-  version: 30,
+  // Updated for v32
+  schemaVersion: 32,
+  appVersion: '32',
+  version: 32,
   // Top-level collections
   categories: defaultCats,
   transactions: demoTx,
@@ -163,7 +164,8 @@ export const defaultData = {
     pin: '',
     lastCategoryId: defaultCats[0].id,
     dirtyCount: 0,
-    quickFavorites: defaultCats.slice(0, 6).map((c) => c.id),
+    // Do not predefine favourite categories; allow user to choose up to 6
+    quickFavorites: [],
   },
   // Budgets per month (YYYY-MM => { categoryId: amount })
   budgets: {},
