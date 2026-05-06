@@ -383,13 +383,17 @@
    Make the date picker field match the size and style of other inputs. (Replaced in v41) */
 
 /* v41 - Centered and narrower date field in new transaction sheet */
+/* v41 definition moved to v42 with adjusted sizing */
 .txDateField {
-  width: 82%;
-  max-width: 560px;
+  width: 78%;
+  max-width: 520px;
   margin-left: auto;
   margin-right: auto;
+  margin-bottom: 14px;
   box-sizing: border-box;
-  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .txDateField input[type="date"] {
   width: 100%;
@@ -400,11 +404,12 @@
   color: var(--text);
   font-size: 16px;
   box-sizing: border-box;
+  text-align: center;
 }
 @media (max-width: 760px) {
   .txDateField {
-    width: 82%;
-    max-width: 100%;
+    width: 80%;
+    max-width: calc(100% - 24px);
   }
   .txDateField input[type="date"] {
     padding: 12px;

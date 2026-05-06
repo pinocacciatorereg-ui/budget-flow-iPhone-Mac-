@@ -152,9 +152,9 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    // Persist the user data with the current schema version (41). This value is
+    // Persist the user data with the current schema version (42). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 41 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 42 }));
   }, [data]);
   return [data, setData];
 }
