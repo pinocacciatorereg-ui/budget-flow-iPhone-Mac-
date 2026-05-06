@@ -1456,3 +1456,19 @@
   .txCardV51 .txActions{display:none;}
 }
 @media(prefers-color-scheme:dark){.txMenu{box-shadow:0 18px 42px rgba(0,0,0,.45);}}
+
+
+/* v52 - semplifica transazioni mobile: niente menu tre puntini */
+.txCardV52,
+.nativeCard.txCardV52{
+  grid-template-columns:22px 12px minmax(0,1fr) auto!important;
+}
+.txCardV52 .txActions,
+.txCardV52 .txMore,
+.txCardV52 .txMenu{
+  display:none!important;
+}
+@media(max-width:760px){
+  .nativeCard.txCardV52{grid-template-columns:22px 12px minmax(0,1fr) auto!important;}
+  .txCardV52 .txAmountText{max-width:104px;}
+}
