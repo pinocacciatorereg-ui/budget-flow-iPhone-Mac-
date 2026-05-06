@@ -103,7 +103,7 @@ const defaultData={
   // Current schema version. Increment this when breaking changes are introduced.
   // v25: update the application data version. This number is stored alongside
   // user data in localStorage and signals the schema version for migrations.
-  version:48,
+  version:49,
   categories:defaultCats,
   transactions:demoTx,
   recurrences:[
@@ -154,7 +154,7 @@ function useData(){
     // and override version to help with future migrations.
     // Persist the user data with the current schema version (43). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 48 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 49 }));
   }, [data]);
   return [data, setData];
 }
@@ -248,9 +248,9 @@ const makeBackup=()=>{
   // version fields are pulled from the current data or default to 30 for v30.
   const backupObj = {
     app: 'BudgetFlow',
-    version: data?.version ?? 48,
-    schemaVersion: data?.schemaVersion ?? 48,
-    appVersion: data?.appVersion ?? '48',
+    version: data?.version ?? 49,
+    schemaVersion: data?.schemaVersion ?? 49,
+    appVersion: data?.appVersion ?? '49',
     createdAt: new Date().toISOString(),
     data,
   };
@@ -440,19 +440,78 @@ const makeBackup=()=>{
 function Tab(p){return <button className={p.tab===p.id?'active':''} onClick={()=>p.setTab(p.id)}>{React.cloneElement(p.icon,{size:20})}<span>{p.label}</span></button>}
 function LockScreen({pinTry,setPinTry,unlock}){return <div className="lock"><Lock size={42}/><h1>BudgetFlow</h1><p>Inserisci il PIN locale</p><input value={pinTry} onChange={e=>setPinTry(e.target.value)} type="password" inputMode="numeric" autoFocus/><button onClick={unlock}>Sblocca</button></div>}
 function Card({title,value,sub,cls}){return <div className={'stat '+cls}><div className="statIcon"></div><div><p>{title}</p><h2>{value}</h2><span>{sub}</span></div></div>}
-function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){const positive=stats.byCat.filter(c=>c.spent>0);const circumference=2*Math.PI*72;let offset=0;return <><section className="mobileHero"><div><span>Saldo del mese</span><h2>{eur(stats.balance)}</h2><p>{stats.balance>=0?'Sei in positivo':'Saldo negativo'} · Budget rimasto {eur(stats.remaining)}</p></div><button onClick={()=>setTab('transactions')}>Transazioni</button></section><section className="stats"><Card cls="blue" title="Uscite" value={eur(stats.spent)} sub={`${Math.round(stats.budget?stats.spent/stats.budget*100:0)}% del budget`}/><Card cls="green" title="Budget" value={eur(stats.budget)} sub="Somma categorie"/><Card cls="yellow" title="Rimanente" value={eur(stats.remaining)} sub="Disponibile"/><Card cls="purple" title="Accrediti" value={eur(stats.income)} sub="Entrate del mese"/></section><section className="grid dashGrid"><div className="panel mobileCompact"><h2>Distribuzione spese</h2><div className="donutWrap"><svg viewBox="0 0 180 180" className="donut">{positive.map(c=>{const dash=c.share/100*circumference;const el=<circle key={c.id} cx="90" cy="90" r="72" fill="none" stroke={c.color} strokeWidth="22" strokeDasharray={`${dash} ${circumference-dash}`} strokeDashoffset={-offset} strokeLinecap="butt"/>;offset+=dash;return el})}<circle cx="90" cy="90" r="50" fill="var(--card)"/><text x="90" y="86" textAnchor="middle" className="donutTotal">{eur(stats.spent)}</text><text x="90" y="105" textAnchor="middle" className="donutSub">spese</text></svg></div><div className="legend compact">{positive.slice(0,8).map(c=><div key={c.id}><span style={{background:c.color}}/><b>{c.name}</b><strong>{eur(c.spent)}</strong><em>{c.share.toFixed(1)}%</em></div>)}</div></div><div className="panel mobileCompact"><h2>Spese per categoria</h2><CategoryBars items={positive}/></div></section><div className="recMini"><div><span>Previsione saldo con ricorrenze</span><b>{eur(recurrenceInfo?.forecastBalance||stats.balance)}</b><p>{recurrenceInfo?.pendingMonth?.length||0} ricorrenze ancora da applicare nel mese</p></div><button onClick={()=>setTab('recurrences')}>Gestisci</button></div><section className="panel mobileCompact"><div className="sectionTitle"><h2>Riepilogo intelligente</h2><button onClick={()=>setTab('reports')}>Report <ChevronRight size={16}/></button></div><div className="insights"><Insight text={`Ti restano ${eur(stats.remaining)}. Puoi spendere circa ${eur(Math.max(0,stats.remaining)/(daysInMonth(monthKey())-dayOfMonth()+1))} al giorno fino a fine mese.`}/>{stats.byCat.filter(c=>c.spent>prev[c.id]&&prev[c.id]).slice(0,2).map(c=><Insight key={c.id} text={`Hai speso ${eur(c.spent-prev[c.id])} in più in ${c.name} rispetto al mese scorso.`}/>)}</div></section><section className="panel mobileDetail"><h2>Budget vs speso</h2><div className="budgetList">{stats.byCat.map(c=><div key={c.id} className="budgetRow"><div><span style={{background:c.color}}/>{c.name}</div><strong>{eur(c.spent)} / {eur(c.budget)}</strong><div className="track"><i style={{width:`${Math.min(100,c.pct)}%`,background:c.pct>=100?'#ef4444':c.pct>=80?'#facc15':'#22c55e'}}/></div></div>)}</div></section></>}
+function Dashboard({stats,prev,cats,setTab,recurrenceInfo}){
+  const positive=stats.byCat.filter(c=>c.spent>0).sort((a,b)=>b.spent-a.spent);
+  const [showAllDist,setShowAllDist]=useState(false);
+  const [showAllBars,setShowAllBars]=useState(false);
+  const visibleDist=showAllDist?positive:positive.slice(0,6);
+  const visibleBars=showAllBars?positive:positive.slice(0,8);
+  const circumference=2*Math.PI*72;
+  let offset=0;
+  const top=positive[0];
+  const top3Share=positive.slice(0,3).reduce((s,c)=>s+(Number(c.share)||0),0);
+  const insight=positive.length
+    ? `${top.name} pesa il ${top.share.toFixed(1)}% delle uscite${positive.length>2?` · le prime 3 categorie coprono il ${top3Share.toFixed(1)}%`:''}`
+    : 'Nessuna spesa registrata questo mese.';
+  return <>
+    <section className="mobileHero">
+      <div>
+        <span>Saldo del mese</span>
+        <h2>{eur(stats.balance)}</h2>
+        <p>{stats.balance>=0?'Sei in positivo':'Saldo negativo'} · Budget rimasto {eur(stats.remaining)}</p>
+      </div>
+      <button onClick={()=>setTab('transactions')}>Transazioni</button>
+    </section>
+    <section className="stats">
+      <Card cls="blue" title="Uscite" value={eur(stats.spent)} sub={`${Math.round(stats.budget?stats.spent/stats.budget*100:0)}% del budget`}/>
+      <Card cls="green" title="Budget" value={eur(stats.budget)} sub="Somma categorie"/>
+      <Card cls="yellow" title="Rimanente" value={eur(stats.remaining)} sub="Disponibile"/>
+      <Card cls="purple" title="Accrediti" value={eur(stats.income)} sub="Entrate del mese"/>
+    </section>
+    <section className="grid dashGrid">
+      <div className="panel mobileCompact distributionPanel">
+        <div className="sectionTitle compactTitle"><h2>Distribuzione spese</h2>{positive.length>0&&<span className="tinyPill">{positive.length} categorie</span>}</div>
+        {positive.length ? <>
+          <div className="donutWrap compactDonutWrap">
+            <svg viewBox="0 0 180 180" className="donut compactDonut">
+              {positive.map(c=>{const dash=(c.share||0)/100*circumference;const el=<circle key={c.id} cx="90" cy="90" r="72" fill="none" stroke={c.color} strokeWidth="20" strokeDasharray={`${dash} ${circumference-dash}`} strokeDashoffset={-offset} strokeLinecap="butt"/>;offset+=dash;return el})}
+              <circle cx="90" cy="90" r="50" fill="var(--card)"/>
+              <text x="90" y="84" textAnchor="middle" className="donutTotal">{eur(stats.spent)}</text>
+              <text x="90" y="105" textAnchor="middle" className="donutSub">spese</text>
+            </svg>
+          </div>
+          <div className="chartInsight"><CheckCircle2 size={16}/><span>{insight}</span></div>
+          <div className="legend compact percentLegend">
+            {visibleDist.map(c=><div key={c.id} className="legendRow"><span style={{background:c.color}}/><b>{c.name}</b><strong>{eur(c.spent)}</strong><em>{c.share.toFixed(1)}%</em></div>)}
+          </div>
+          {positive.length>6&&<button className="showMoreBtn" onClick={()=>setShowAllDist(v=>!v)}>{showAllDist?'Mostra meno':'Mostra tutte'}</button>}
+        </> : <EmptyChart />}
+      </div>
+      <div className="panel mobileCompact categoryBarsPanel">
+        <div className="sectionTitle compactTitle"><h2>Spese per categoria</h2>{positive.length>0&&<span className="tinyPill">%</span>}</div>
+        {positive.length ? <>
+          <CategoryBars items={visibleBars}/>
+          {positive.length>8&&<button className="showMoreBtn" onClick={()=>setShowAllBars(v=>!v)}>{showAllBars?'Mostra meno':'Mostra tutte'}</button>}
+        </> : <EmptyChart />}
+      </div>
+    </section>
+    <div className="recMini"><div><span>Previsione saldo con ricorrenze</span><b>{eur(recurrenceInfo?.forecastBalance||stats.balance)}</b><p>{recurrenceInfo?.pendingMonth?.length||0} ricorrenze ancora da applicare nel mese</p></div><button onClick={()=>setTab('recurrences')}>Gestisci</button></div>
+    <section className="panel mobileCompact"><div className="sectionTitle"><h2>Riepilogo intelligente</h2><button onClick={()=>setTab('reports')}>Report <ChevronRight size={16}/></button></div><div className="insights"><Insight text={`Ti restano ${eur(stats.remaining)}. Puoi spendere circa ${eur(Math.max(0,stats.remaining)/(daysInMonth(monthKey())-dayOfMonth()+1))} al giorno fino a fine mese.`}/>{stats.byCat.filter(c=>c.spent>prev[c.id]&&prev[c.id]).slice(0,2).map(c=><Insight key={c.id} text={`Hai speso ${eur(c.spent-prev[c.id])} in più in ${c.name} rispetto al mese scorso.`}/>)}</div></section>
+    <section className="panel mobileDetail"><h2>Budget vs speso</h2><div className="budgetList">{stats.byCat.map(c=><div key={c.id} className="budgetRow"><div><span style={{background:c.color}}/>{c.name}</div><strong>{eur(c.spent)} / {eur(c.budget)}</strong><div className="track"><i style={{width:`${Math.min(100,c.pct)}%`,background:c.pct>=100?'#ef4444':c.pct>=80?'#facc15':'#22c55e'}}/></div></div>)}</div></section>
+  </>}
+function EmptyChart(){return <div className="emptyChart"><b>Nessuna spesa registrata questo mese</b><span>Aggiungi una spesa per vedere la distribuzione.</span></div>}
 function CategoryBars({ items }) {
   const max = Math.max(1, ...items.map((i) => i.spent));
   return (
-    <div className="mobileBars">
+    <div className="mobileBars compactBars">
       {items.map((i) => (
-        <div key={i.id} className="mbar">
-          <div className="mbarTop">
+        <div key={i.id} className="mbar compactMbar">
+          <div className="mbarTop compactMbarTop">
             <span style={{ background: i.color }} />
             <b>{i.name}</b>
             <strong>{eur(i.spent)} · {i.share.toFixed(1)}%</strong>
           </div>
-          <div className="track">
+          <div className="track compactTrack">
             <i style={{ width: `${i.spent / max * 100}%`, background: i.color }} />
           </div>
         </div>
