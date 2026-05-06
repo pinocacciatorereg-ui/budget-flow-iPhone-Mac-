@@ -528,12 +528,31 @@
   margin: 4px 0 6px;
 }
 
+/* Adjust the width and centering of the date field on the transaction sheet */
+.txSheet input[type="date"] {
+  width: 100%;
+  max-width: 260px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Increase breathing space between panels and grid items on mobile */
+@media (max-width: 760px) {
+  .grid {
+    gap: 14px;
+  }
+  .panel {
+    margin-top: 14px;
+  }
+}
+
 /* Center the transaction modal sheet and constrain width on mobile */
 .txSheet {
   box-sizing: border-box;
   width: min(100%, 520px);
   margin-left: auto;
   margin-right: auto;
+  overflow-x: hidden;
 }
 
 /* Recurrence card improvements */

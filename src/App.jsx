@@ -248,9 +248,9 @@ const makeBackup=()=>{
   // version fields are pulled from the current data or default to 30 for v30.
   const backupObj = {
     app: 'BudgetFlow',
-    version: data?.version ?? 30,
-    schemaVersion: data?.schemaVersion ?? 30,
-    appVersion: data?.appVersion ?? '30',
+    version: data?.version ?? 33,
+    schemaVersion: data?.schemaVersion ?? 33,
+    appVersion: data?.appVersion ?? '33',
     createdAt: new Date().toISOString(),
     data,
   };
