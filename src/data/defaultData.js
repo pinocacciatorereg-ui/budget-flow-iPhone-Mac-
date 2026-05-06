@@ -152,10 +152,11 @@ export const defaultData = {
   // Schema and application versions for migrations
   // Update schema and app versions for v30
   // Updated for v34
-  // Updated schema and app versions for v36
-  schemaVersion: 37,
-  appVersion: '37',
-  version: 37,
+  // Updated schema and app versions for v35
+  // Updated for v38
+  schemaVersion: 38,
+  appVersion: '38',
+  version: 38,
   // Top-level collections
   categories: defaultCats,
   transactions: demoTx,

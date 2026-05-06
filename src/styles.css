@@ -323,6 +323,56 @@
   gap:10px;
   margin:12px 0;
 }
+
+/* v38 - Premium redesign based on v35
+   These overrides ensure a sober, neutral aesthetic on iPhone.
+   Card backgrounds are solid and neutral; action buttons are unobtrusive; 
+   modal overlays are opaque and legible; horizontal overflow is prevented. */
+
+/* Transaction cards: neutral background and minimal action buttons */
+.txCard {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.txCard button {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  font-size: 0;
+  color: var(--primary);
+}
+@media (max-width: 760px) {
+  .txCard button {
+    display: none;
+  }
+}
+
+/* Modal overlay and sheets: dark backdrop and solid sheet */
+.modal {
+  background: rgba(0, 0, 0, 0.5);
+}
+.sheet {
+  background: var(--card);
+}
+
+/* Ensure transaction form fields align uniformly */
+.txField {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Prevent horizontal scrolling in lists and cards */
+.txCards, .catGrid, .legend, .mobileBars {
+  overflow-x: hidden;
+}
+
+/* Refine bottom navigation bar: subtle glass effect and clarity */
+.bottom {
+  backdrop-filter: blur(10px);
+  background: color-mix(in oklab, var(--card), transparent 6%);
+}
 .mapRow{
   display:grid;
   gap:6px;
@@ -664,67 +714,4 @@
   .donut {
     width: min(240px, 70vw);
   }
-}
-
-/* --- BudgetFlow v36 premium theme overrides --- */
-/* Redefine root variables to adopt a softer, more refined palette. These values override
-   the initial definitions defined at the top of the stylesheet and apply across
-   light and dark modes. */
-:root {
-  --bg: #f3f4f8;
-  --card: rgba(255,255,255,0.8);
-  --text: #0f172a;
-  --muted: #64748b;
-  --line: #d1d5db;
-  --shadow: 0 8px 24px rgba(15,23,42,.05);
-  --primary: #4f46e5;
-}
-@media(prefers-color-scheme:dark){
-  :root {
-    --bg: #0d1a32;
-    --card: rgba(17,24,39,0.8);
-    --text: #e5e7eb;
-    --muted: #9ca3af;
-    --line: #263143;
-    --shadow: 0 8px 24px rgba(0,0,0,.45);
-    --primary: #818cf8;
-  }
-}
-
-/* Panel and card adjustments for a premium, less cluttered look */
-.panel {
-  border-radius: 24px;
-  border: 1px solid color-mix(in oklab, var(--line), transparent 40%);
-  box-shadow: var(--shadow);
-  background: color-mix(in oklab, var(--card), transparent 5%);
-}
-.stat {
-  border-radius: 24px;
-  box-shadow: var(--shadow);
-  background: color-mix(in oklab, var(--card), transparent 5%);
-}
-
-/* Tab bar glass effect and subtle styling */
-.bottom {
-  backdrop-filter: blur(14px) saturate(180%);
-  background: color-mix(in oklab, var(--card), transparent 20%);
-  border: 1px solid color-mix(in oklab, var(--line), transparent 60%);
-  box-shadow: 0 6px 20px rgba(0,0,0,.05);
-}
-
-/* Backup banner styling for less intrusive alert */
-.backupBanner {
-  font-size: 13px;
-  padding: 10px 12px;
-  border-radius: 20px;
-  background: color-mix(in oklab, #fde68a, transparent 85%);
-  color: color-mix(in oklab, #713f12, transparent 20%);
-  border: 1px solid color-mix(in oklab, #fde68a, transparent 60%);
-}
-.backupBanner button {
-  padding: 6px 10px;
-  font-size: 13px;
-  border-radius: 16px;
-  background: var(--primary);
-  color: white;
 }

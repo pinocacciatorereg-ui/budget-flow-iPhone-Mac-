@@ -1,7 +1,7 @@
 
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 // createRoot is used in main.jsx to mount the app. Not needed here.
-import { BarChart3, CalendarClock, CheckCircle2, ChevronRight, Copy, Download, FileJson, LayoutDashboard, ListChecks, Lock, Plus, Repeat, RotateCcw, Search, ShieldCheck, Tags, Trash2, Upload, Wallet, X, MoreVertical } from 'lucide-react';
+import { BarChart3, CalendarClock, CheckCircle2, ChevronRight, Copy, Download, FileJson, LayoutDashboard, ListChecks, Lock, Plus, Repeat, RotateCcw, Search, ShieldCheck, Tags, Trash2, Upload, Wallet, X } from 'lucide-react';
 // Import storage helpers and migrations
 import { loadData, saveData, isIndexedDBAvailable } from './data/storage.js';
 import { migrateData } from './data/migrations.js';
@@ -152,10 +152,9 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    // Persist the user data with the current schema version (25). This value is
+    // Persist the user data with the current schema version (38). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    // Persist data with the current schema version 37
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 37 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 38 }));
   }, [data]);
   return [data, setData];
 }
