@@ -152,9 +152,9 @@ function useData(){
   useEffect(() => {
     // Persist data with the current version number. Spread only the data object
     // and override version to help with future migrations.
-    // Persist the user data with the current schema version (40). This value is
+    // Persist the user data with the current schema version (41). This value is
     // used to detect outdated data in future updates. See defaultData.version.
-    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 40 }));
+    localStorage.setItem('budgetflow', JSON.stringify({ ...data, version: 41 }));
   }, [data]);
   return [data, setData];
 }
@@ -523,7 +523,9 @@ function TxModal({ tx, cats, save, close, settings, setData }) {
           <X />
         </button>
         <h2>{tx ? 'Modifica transazione' : (f.type === 'income' ? 'Nuova entrata' : 'Nuova uscita')}</h2>
-        <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+        <div className="txDateField">
+          <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+        </div>
         <input
           className="txAmount"
           inputMode="decimal"
