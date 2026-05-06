@@ -378,6 +378,25 @@
   backdrop-filter: blur(10px);
   background: color-mix(in oklab, var(--card), transparent 6%);
 }
+
+/* v39 - Fine-tune new transaction sheet on mobile (Chrome on iPhone)
+   Make the date picker field match the size and style of other inputs. */
+.txSheet input[type="date"] {
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font-size: 16px;
+}
+
+@media (max-width: 760px) {
+  .txSheet input[type="date"] {
+    font-size: 16px;
+    padding: 12px;
+  }
+}
 .mapRow{
   display:grid;
   gap:6px;
