@@ -1539,3 +1539,67 @@
     grid-template-columns:12px minmax(0,1fr) auto!important;
   }
 }
+
+/* v55 - Ricorrenze mobile: swipe elimina/modifica e pulsanti sempre visibili */
+.recSwipeShell{
+  position:relative;
+  overflow:hidden!important;
+  border-radius:24px;
+  background:transparent;
+  box-shadow:0 10px 24px rgba(15,23,42,.05);
+}
+.recSwipeShell .swipeBg{
+  border-radius:24px;
+  transition:opacity .12s ease;
+  pointer-events:none;
+}
+.recCardV55{
+  position:relative;
+  z-index:1;
+  background:var(--card)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 8px 22px rgba(15,23,42,.05)!important;
+  transition:transform .18s ease;
+  grid-template-columns:34px 12px minmax(0,1fr) auto!important;
+  align-items:start;
+  gap:12px;
+}
+.recCardV55 .recIcon{width:28px;height:28px;color:var(--text);margin-top:2px;}
+.recCardV55 .recMain{min-width:0;}
+.recCardV55 .recMain b{font-size:18px;line-height:1.15;}
+.recCardV55 .recMain span,
+.recCardV55 .recMain small{display:block;line-height:1.25;}
+.recCardV55 strong{white-space:nowrap;font-size:18px;line-height:1.1;justify-self:end;}
+.recActionsV55{
+  grid-column:1 / -1!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  width:100%;
+  margin-top:10px!important;
+}
+.recActionsV55 button{
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:42px;
+  padding:10px 8px!important;
+  border-radius:14px!important;
+  font-size:13px!important;
+  font-weight:800;
+  line-height:1.05;
+  border:1px solid var(--line)!important;
+  white-space:nowrap;
+}
+.recActionsV55 .recPrimary{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;}
+.recActionsV55 .recSecondary{background:color-mix(in oklab,var(--card),var(--bg) 45%)!important;color:var(--text)!important;}
+.recActionsV55 .recDanger{background:#fee2e2!important;color:#dc2626!important;border-color:#fecaca!important;}
+.recCardV55.muted{opacity:.62;}
+@media(max-width:760px){
+  .recCards{gap:14px;}
+  .recCardV55{grid-template-columns:32px 12px minmax(0,1fr)!important;padding:16px 14px!important;border-radius:24px!important;}
+  .recCardV55 strong{grid-column:3;justify-self:start;margin-top:6px;font-size:17px;}
+  .recActionsV55{grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px!important;}
+  .recActionsV55 button{font-size:12px!important;padding:10px 6px!important;}
+}

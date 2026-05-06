@@ -541,6 +541,38 @@ function SwipeTx({t,c,selected,setSelected,onEdit,onDelete,onDup}){
     </div>
   </div>
 }
+
+function SwipeRec({r,color,month,cats,catName,daysInMonth,txAll,toggle,onEdit,onDelete}){
+  const [x,setX]=useState(0);
+  const sx=useRef(0);
+  const dx=useRef(0);
+  const date=`${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;
+  const exists=txAll.some(t=>t.date===date&&t.description===r.description&&Number(t.amount)===Number(r.amount)&&t.type===r.type);
+  const start=e=>{sx.current=e.touches?.[0]?.clientX||0;dx.current=0};
+  const move=e=>{const v=(e.touches?.[0]?.clientX||0)-sx.current;dx.current=v;if(Math.abs(v)>8)setX(Math.max(-92,Math.min(92,v)))};
+  const end=()=>{if(dx.current<-70){setX(-92);setTimeout(()=>{setX(0);onDelete(r.id)},120)}else if(dx.current>70){setX(92);setTimeout(()=>{setX(0);onEdit(r)},120)}else setX(0)};
+  const bgVisible=Math.abs(x)>2;
+  return <div className="swipeShell recSwipeShell">
+    <div className="swipeBg left" style={{opacity:bgVisible?1:0}}>Modifica</div>
+    <div className="swipeBg right" style={{opacity:bgVisible?1:0}}>Elimina</div>
+    <div className={`txCard recCard recCardV55 ${!r.active?'muted':''}`} style={{transform:`translateX(${x}px)`}} onTouchStart={start} onTouchMove={move} onTouchEnd={end}>
+      <CalendarClock className="recIcon" />
+      <span className="dot" style={{ background: color }}></span>
+      <div className="txMain recMain">
+        <b>{r.description}</b>
+        <span>{r.type==='income'?'Entrata':'Uscita'} · pagamento giorno {r.day} · {catName(r.categoryId)} · promemoria {r.remindDays??0}g</span>
+        <small>{exists?'Già applicata al mese corrente':'Da applicare al mese corrente'}</small>
+      </div>
+      <strong className={r.type==='income'?'pos':'neg'}>{r.type==='income'?'+':'-'}{eur(r.amount)}</strong>
+      <div className="recActions recActionsV55">
+        <button className={r.active?'recSecondary':'recPrimary'} type="button" onClick={()=>toggle(r.id)}>{r.active?'Disattiva':'Attiva'}</button>
+        <button className="recSecondary" type="button" onClick={()=>onEdit(r)}>Modifica</button>
+        <button className="recDanger" type="button" onClick={()=>onDelete(r.id)}><Trash2 size={16}/>Elimina</button>
+      </div>
+    </div>
+  </div>
+}
+
 function TxModal({ tx, cats, save, close, settings, setData }) {
   const [f, setF] = useState(tx || {
     date: today(),
@@ -1042,25 +1074,19 @@ function Recurrences({data,cats,setData,applyRecurrences,month,txAll,recurrenceI
         const date = `${month}-${String(Math.min(Number(r.day||1),daysInMonth(month))).padStart(2,'0')}`;
         const exists = txAll.some(t => t.date===date && t.description===r.description && Number(t.amount)===Number(r.amount) && t.type===r.type);
         const color = r.type === 'income' ? '#22c55e' : (cats.find(c => c.id === r.categoryId)?.color || '#3b82f6');
-      return (
-        <div className={`txCard recCard ${!r.active ? 'muted' : ''}`} key={r.id}>
-          <CalendarClock />
-          <span className="dot" style={{ background: color }}></span>
-          <div className="txMain">
-            <b>{r.description}</b>
-            <span>{r.type === 'income' ? 'Entrata' : 'Uscita'} · pagamento giorno {r.day} · {catName(r.categoryId)} · promemoria {r.remindDays ?? 0}g</span>
-            <small>{exists ? 'Già applicata al mese corrente' : 'Da applicare al mese corrente'}</small>
-          </div>
-          <strong className={r.type === 'income' ? 'pos' : 'neg'}>
-            {r.type === 'income' ? '+' : '-'}{eur(r.amount)}
-          </strong>
-          <div className="recActions">
-            <button type="button" onClick={() => toggle(r.id)}>{r.active ? 'Disattiva' : 'Attiva'}</button>
-            <button type="button" onClick={() => setEditRec(r)}>Modifica</button>
-            <button type="button" onClick={() => remove(r.id)}><Trash2 size={16} /></button>
-          </div>
-        </div>
-      );
+      return <SwipeRec
+        key={r.id}
+        r={r}
+        color={color}
+        month={month}
+        cats={cats}
+        catName={catName}
+        daysInMonth={daysInMonth}
+        txAll={txAll}
+        toggle={toggle}
+        onEdit={setEditRec}
+        onDelete={remove}
+      />;
       })}
     </div>
     {editRec && <RecurrenceEditor rec={editRec} close={() => setEditRec(null)} />}
